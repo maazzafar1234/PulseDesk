@@ -30,19 +30,45 @@ app.use(cors({
   credentials: true,
 }));
 
-// Routes (to be implemented in modules 2 & 3)
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/tickets', require('./routes/tickets'));
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'PulseDesk API',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/tickets', require('./routes/tickets'));
+
+// 404 handler for undefined routes
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    path: req.path,
+    method: req.method,
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
+  
+  // Structured error response
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+  
+  res.status(status).json({
+    error: message,
+    status: status,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });

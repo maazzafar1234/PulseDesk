@@ -17,30 +17,17 @@ export const FilterBar = ({
 
   const priorities = [
     { value: '', label: 'All Priority' },
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
+    { value: 'low', label: '🟢 Low' },
+    { value: 'medium', label: '🟡 Medium' },
+    { value: 'high', label: '🔴 High' },
   ];
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high':
-        return 'border-red-500/50 hover:bg-red-500/10';
-      case 'medium':
-        return 'border-yellow-500/50 hover:bg-yellow-500/10';
-      case 'low':
-        return 'border-green-500/50 hover:bg-green-500/10';
-      default:
-        return 'border-slate-700 hover:bg-slate-800';
-    }
-  };
 
   return (
     <div className="flex flex-wrap gap-3 items-center">
       <select
         value={statusFilter}
         onChange={(e) => setStatusFilter(e.target.value)}
-        className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-blue-500 text-white text-sm"
+        className="px-3 py-2.5 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white text-sm font-medium transition-all"
       >
         {statuses.map((status) => (
           <option key={status.value} value={status.value}>
@@ -52,9 +39,7 @@ export const FilterBar = ({
       <select
         value={priorityFilter}
         onChange={(e) => setPriorityFilter(e.target.value)}
-        className={`px-3 py-2 bg-slate-800 border rounded-lg focus:outline-none focus:border-blue-500 text-white text-sm ${getPriorityColor(
-          priorityFilter
-        )}`}
+        className="px-3 py-2.5 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white text-sm font-medium transition-all"
       >
         {priorities.map((priority) => (
           <option key={priority.value} value={priority.value}>
@@ -65,7 +50,7 @@ export const FilterBar = ({
 
       <button
         onClick={onRefresh}
-        className="flex items-center gap-2 px-3 py-2 bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-lg text-white text-sm transition-colors"
+        className="flex items-center gap-2 px-3 py-2.5 bg-slate-800 border border-slate-600 hover:border-indigo-500 hover:bg-slate-700 rounded-lg text-slate-200 text-sm font-medium transition-all duration-200"
       >
         <RefreshCw size={16} />
         Refresh
