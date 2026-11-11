@@ -1,0 +1,1587 @@
+diff --git a/client/src/components/CreateTicketModal.jsx b/client/src/components/CreateTicketModal.jsx
+index d29a871..517759c 100644
+--- a/client/src/components/CreateTicketModal.jsx
++++ b/client/src/components/CreateTicketModal.jsx
+@@ -1,170 +1,181 @@
+-import { useState } from 'react';
+-import { X, Loader } from 'lucide-react';
++import React, { useState } from 'react';
++import { X, Plus, AlertCircle, Loader2 } from 'lucide-react';
+ 
+-export const CreateTicketModal = ({ onClose, onSubmit }) => {
+-  const [formData, setFormData] = useState({
+-    title: '',
+-    description: '',
+-    priority: 'medium',
+-    status: 'open',
+-  });
+-  const [error, setError] = useState('');
++export const CreateTicketModal = ({ isOpen, onClose, onCreate }) => {
++  const [title, setTitle] = useState('');
++  const [description, setDescription] = useState('');
++  const [priority, setPriority] = useState('Medium');
++  const [status, setStatus] = useState('Open');
+   const [loading, setLoading] = useState(false);
++  const [error, setError] = useState('');
++
++  if (!isOpen) return null;
+ 
+   const handleSubmit = async (e) => {
+     e.preventDefault();
+-    setError('');
+-
+-    if (!formData.title.trim() || !formData.description.trim()) {
+-      setError('Title and description are required');
++    if (!title.trim() || !description.trim()) {
++      setError('Please fill in both title and description.');
+       return;
+     }
+ 
++    setError('');
++    setLoading(true);
++
+     try {
+-      setLoading(true);
+-      await onSubmit(formData);
++      await onCreate({ title, description, priority, status });
++      setTitle('');
++      setDescription('');
++      setPriority('Medium');
++      setStatus('Open');
++      onClose();
+     } catch (err) {
+-      setError(err.response?.data?.error || 'Failed to create ticket');
++      setError(err.response?.data?.error || 'Failed to create ticket.');
+     } finally {
+       setLoading(false);
+     }
+   };
+ 
+-  const handleInputChange = (e) => {
+-    const { name, value } = e.target;
+-    setFormData((prev) => ({
+-      ...prev,
+-      [name]: value,
+-    }));
+-  };
+-
+   return (
+-    <div className="modal-overlay">
+-      <div className="modal-content">
+-        {/* Header */}
+-        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+-          <div>
+-            <h2 className="text-2xl font-bold text-gradient">Create New Ticket</h2>
+-            <p className="text-sm text-slate-400 mt-1">Add a new support ticket to your queue</p>
++    /* FIXED OVERLAY COVERING THE ENTIRE SCREEN */
++    <div
++      style={{
++        position: 'fixed',
++        top: 0,
++        left: 0,
++        right: 0,
++        bottom: 0,
++        backgroundColor: 'rgba(2, 6, 23, 0.85)',
++        backdropFilter: 'blur(4px)',
++        zIndex: 9999,
++        display: 'flex',
++        alignItems: 'center',
++        justifyContent: 'center',
++        padding: '1rem',
++      }}
++      onClick={onClose}
++    >
++      {/* MODAL CONTAINER CARD */}
++      <div
++        style={{
++          width: '100%',
++          maxWidth: '520px',
++          backgroundColor: '#0f172a',
++          border: '1px solid #1e293b',
++          borderRadius: '16px',
++          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
++          overflow: 'hidden',
++          display: 'flex',
++          flexDirection: 'column',
++        }}
++        onClick={(e) => e.stopPropagation()}
++      >
++        {/* Modal Header */}
++        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
++          <div className="flex items-center gap-2 text-indigo-400">
++            <Plus size={20} />
++            <h2 className="text-lg font-bold text-slate-100">Create New Ticket</h2>
+           </div>
+           <button
++            type="button"
+             onClick={onClose}
+-            className="p-2 hover:bg-slate-700 rounded-lg transition-smooth text-slate-400 hover:text-white"
+-            disabled={loading}
++            className="p-1 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors"
+           >
+-            <X size={24} />
++            <X size={20} />
+           </button>
+         </div>
+ 
+-        {/* Content */}
+-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
++        {/* Modal Form */}
++        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+           {error && (
+-            <div className="alert-error">
+-              <span>⚠️</span>
+-              {error}
++            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
++              <AlertCircle size={16} className="shrink-0" />
++              <span>{error}</span>
+             </div>
+           )}
+ 
+           {/* Title */}
+-          <div>
+-            <label className="block text-sm font-semibold text-slate-200 mb-3">
++          <div className="space-y-1 text-left">
++            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+               Ticket Title
+             </label>
+             <input
+               type="text"
+-              name="title"
+-              value={formData.title}
+-              onChange={handleInputChange}
+-              placeholder="Brief description of the issue"
+-              className="input-field"
++              value={title}
++              onChange={(e) => setTitle(e.target.value)}
++              placeholder="e.g. Database connection timeout"
+               required
+               disabled={loading}
+-              maxLength={100}
++              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500"
+             />
+-            <p className="text-xs text-slate-400 mt-1">
+-              {formData.title.length}/100 characters
+-            </p>
+           </div>
+ 
+           {/* Description */}
+-          <div>
+-            <label className="block text-sm font-semibold text-slate-200 mb-3">
++          <div className="space-y-1 text-left">
++            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+               Description
+             </label>
+             <textarea
+-              name="description"
+-              value={formData.description}
+-              onChange={handleInputChange}
+-              placeholder="Detailed description of the issue..."
+-              rows="5"
+-              className="input-field resize-none"
++              value={description}
++              onChange={(e) => setDescription(e.target.value)}
++              placeholder="Describe the issue in detail..."
++              rows={4}
+               required
+               disabled={loading}
+-              maxLength={500}
++              className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 resize-none"
+             />
+-            <p className="text-xs text-slate-400 mt-1">
+-              {formData.description.length}/500 characters
+-            </p>
+           </div>
+ 
+-          {/* Priority & Status Row */}
+-          <div className="grid grid-cols-2 gap-4">
+-            {/* Priority */}
+-            <div>
+-              <label className="block text-sm font-semibold text-slate-200 mb-3">
++          {/* Selectors */}
++          <div className="grid grid-cols-2 gap-4 text-left">
++            <div className="space-y-1">
++              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                 Priority
+               </label>
+               <select
+-                name="priority"
+-                value={formData.priority}
+-                onChange={handleInputChange}
+-                className="input-field"
+-                disabled={loading}
++                value={priority}
++                onChange={(e) => setPriority(e.target.value)}
++                className="w-full px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-indigo-500"
+               >
+-                <option value="low">🟢 Low</option>
+-                <option value="medium">🟡 Medium</option>
+-                <option value="high">🔴 High</option>
++                <option value="Low">Low</option>
++                <option value="Medium">Medium</option>
++                <option value="High">High</option>
+               </select>
+             </div>
+ 
+-            {/* Status */}
+-            <div>
+-              <label className="block text-sm font-semibold text-slate-200 mb-3">
++            <div className="space-y-1">
++              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                 Initial Status
+               </label>
+               <select
+-                name="status"
+-                value={formData.status}
+-                onChange={handleInputChange}
+-                className="input-field"
+-                disabled={loading}
++                value={status}
++                onChange={(e) => setStatus(e.target.value)}
++                className="w-full px-3 py-2 bg-slate-950 border border-slate-700/80 rounded-xl text-slate-100 text-xs focus:outline-none focus:border-indigo-500"
+               >
+-                <option value="open">Open</option>
+-                <option value="in-progress">In Progress</option>
+-                <option value="resolved">Resolved</option>
+-                <option value="closed">Closed</option>
++                <option value="Open">Open</option>
++                <option value="In Progress">In Progress</option>
++                <option value="Resolved">Resolved</option>
+               </select>
+             </div>
+           </div>
+ 
+-          {/* Buttons */}
+-          <div className="flex gap-3 pt-6 border-t border-slate-700">
++          {/* Action Buttons */}
++          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+             <button
+               type="button"
+               onClick={onClose}
+-              className="btn-secondary flex-1"
+               disabled={loading}
++              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all"
+             >
+               Cancel
+             </button>
+             <button
+               type="submit"
+               disabled={loading}
+-              className="btn-primary flex-1 flex items-center justify-center gap-2"
++              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all disabled:opacity-50"
+             >
+               {loading ? (
+                 <>
+-                  <Loader size={18} className="animate-spin" />
++                  <Loader2 size={14} className="animate-spin" />
+                   Creating...
+                 </>
+               ) : (
+@@ -176,4 +187,4 @@ export const CreateTicketModal = ({ onClose, onSubmit }) => {
+       </div>
+     </div>
+   );
+-};
++};
+\ No newline at end of file
+diff --git a/client/src/index.css b/client/src/index.css
+index 993c1a0..e41ee85 100644
+--- a/client/src/index.css
++++ b/client/src/index.css
+@@ -1,157 +1,8 @@
+ @import "tailwindcss";
+ 
+-* {
+-  margin: 0;
+-  padding: 0;
+-  box-sizing: border-box;
+-}
+-
+-html {
+-  scroll-behavior: smooth;
+-}
+-
+ body {
+-  @apply bg-slate-950 text-slate-100;
+-}
+-
+-#root {
+-  width: 100%;
+-  min-height: 100vh;
+-  display: flex;
+-  flex-direction: column;
+-}
+-
+-/* === ANIMATIONS === */
+-
+-@keyframes fadeIn {
+-  from { opacity: 0; }
+-  to { opacity: 1; }
+-}
+-
+-@keyframes slideInDown {
+-  from {
+-    opacity: 0;
+-    transform: translateY(-20px);
+-  }
+-  to {
+-    opacity: 1;
+-    transform: translateY(0);
+-  }
+-}
+-
+-@keyframes slideInUp {
+-  from {
+-    opacity: 0;
+-    transform: translateY(20px);
+-  }
+-  to {
+-    opacity: 1;
+-    transform: translateY(0);
+-  }
+-}
+-
+-@keyframes slideInRight {
+-  from {
+-    opacity: 0;
+-    transform: translateX(20px);
+-  }
+-  to {
+-    opacity: 1;
+-    transform: translateX(0);
+-  }
+-}
+-
+-@keyframes slideInLeft {
+-  from {
+-    opacity: 0;
+-    transform: translateX(-20px);
+-  }
+-  to {
+-    opacity: 1;
+-    transform: translateX(0);
+-  }
+-}
+-
+-@keyframes scaleIn {
+-  from {
+-    opacity: 0;
+-    transform: scale(0.95);
+-  }
+-  to {
+-    opacity: 1;
+-    transform: scale(1);
+-  }
+-}
+-
+-@keyframes bounce {
+-  0%, 100% { transform: translateY(0); }
+-  50% { transform: translateY(-10px); }
+-}
+-
+-@keyframes glow {
+-  0%, 100% { box-shadow: 0 0 10px rgba(99, 102, 241, 0.3); }
+-  50% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.6); }
+-}
+-
+-.animate-fadeIn {
+-  animation: fadeIn 0.6s ease-out;
+-}
+-
+-.animate-slideInDown {
+-  animation: slideInDown 0.6s ease-out;
+-}
+-
+-.animate-slideInUp {
+-  animation: slideInUp 0.6s ease-out;
+-}
+-
+-.animate-slideInRight {
+-  animation: slideInRight 0.6s ease-out;
+-}
+-
+-.animate-slideInLeft {
+-  animation: slideInLeft 0.6s ease-out;
+-}
+-
+-.animate-scaleIn {
+-  animation: scaleIn 0.4s ease-out;
+-}
+-
+-.animate-glow {
+-  animation: glow 2s ease-in-out infinite;
+-}
+-
+-.text-gradient {
+-  background: linear-gradient(to right, rgb(165, 180, 252), rgb(96, 165, 250), rgb(34, 211, 238));
+-  -webkit-background-clip: text;
+-  -webkit-text-fill-color: transparent;
+-  background-clip: text;
+-}
+-
+-/* === SCROLLBAR === */
+-
+-::-webkit-scrollbar {
+-  width: 8px;
+-  height: 8px;
+-}
+-
+-::-webkit-scrollbar-track {
+-  background: rgba(71, 85, 105, 0.1);
+-}
+-
+-::-webkit-scrollbar-thumb {
+-  background: rgba(99, 102, 241, 0.4);
+-  border-radius: 4px;
+-}
+-
+-::-webkit-scrollbar-thumb:hover {
+-  background: rgba(99, 102, 241, 0.6);
+-}
+-
+-/* === RESPONSIVE === */
+-
+-@media (max-width: 768px) {
+-  .section-spacing {
+-    padding: 1.5rem 1rem;
+-  }
+-}
++  margin: 0;
++  background-color: #020617;
++  color: #f8fafc;
++  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
++}
+\ No newline at end of file
+diff --git a/client/src/pages/AuthPage.jsx b/client/src/pages/AuthPage.jsx
+index d525ab7..71e4227 100644
+--- a/client/src/pages/AuthPage.jsx
++++ b/client/src/pages/AuthPage.jsx
+@@ -1,20 +1,27 @@
+-import { useState } from 'react';
+-import { useNavigate } from 'react-router-dom';
+-import { useAuth } from '../context/AuthContext';
+-import { Mail, Lock, AlertCircle, Loader } from 'lucide-react';
++import { useState } from "react";
++import { useNavigate } from "react-router-dom";
++import { useAuth } from "../context/AuthContext";
++import {
++  Mail,
++  Lock,
++  AlertCircle,
++  Loader2,
++  ShieldCheck,
++  ArrowRight,
++} from "lucide-react";
+ 
+ export const AuthPage = () => {
+   const [isLogin, setIsLogin] = useState(true);
+-  const [email, setEmail] = useState('');
+-  const [password, setPassword] = useState('');
++  const [email, setEmail] = useState("");
++  const [password, setPassword] = useState("");
+   const [loading, setLoading] = useState(false);
+-  const [error, setError] = useState('');
++  const [error, setError] = useState("");
+   const { login, register } = useAuth();
+   const navigate = useNavigate();
+ 
+   const handleSubmit = async (e) => {
+     e.preventDefault();
+-    setError('');
++    setError("");
+     setLoading(true);
+ 
+     try {
+@@ -23,163 +30,178 @@ export const AuthPage = () => {
+       } else {
+         await register(email, password);
+       }
+-      navigate('/dashboard');
++      navigate("/dashboard");
+     } catch (err) {
+-      setError(err.response?.data?.error || 'Something went wrong');
++      setError(
++        err.response?.data?.error || "Authentication failed. Please try again.",
++      );
+     } finally {
+       setLoading(false);
+     }
+   };
+ 
+   const toggleMode = () => {
+-    setIsLogin(!isLogin);
+-    setError('');
+-    setEmail('');
+-    setPassword('');
++    setIsLogin((prev) => !prev);
++    setError("");
+   };
+ 
+   return (
+-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950/20 to-slate-950 flex flex-col items-center justify-center relative overflow-hidden p-4">
+-      {/* Animated Background Elements */}
+-      <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse" />
+-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
++    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans">
++      {/* Dynamic Background Glows */}
++      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none" />
++      <div className="absolute bottom-10 right-10 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none" />
+ 
+-      <div className="relative z-10 w-full max-w-md">
+-        {/* Header */}
+-        <div className="text-center mb-12 animate-slideInDown">
+-          <h1 className="text-5xl font-bold text-gradient mb-2">
+-            PulseDesk
+-          </h1>
+-          <p className="text-slate-400 text-lg">Customer Support Ticketing System</p>
+-        </div>
+-
+-        {/* Auth Card */}
+-        <div className="card p-8 shadow-2xl animate-slideInUp">
+-          {/* Tabs */}
+-          <div className="flex gap-4 mb-8">
+-            <button
+-              onClick={() => isLogin && toggleMode()}
+-              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-300 ${
+-                !isLogin
+-                  ? 'bg-indigo-600 text-white shadow-lg'
+-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+-              }`}
+-            >
+-              Sign Up
+-            </button>
+-            <button
+-              onClick={() => !isLogin && toggleMode()}
+-              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-300 ${
+-                isLogin
+-                  ? 'bg-indigo-600 text-white shadow-lg'
+-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+-              }`}
+-            >
+-              Sign In
+-            </button>
++      {/* Main Container */}
++      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 z-10">
++        <div className="w-full max-w-md space-y-6">
++          {/* Header Branding */}
++          <div className="text-center space-y-2">
++            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold tracking-wide uppercase">
++              <ShieldCheck size={14} /> Internal Desk v1.0
++            </div>
++            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-sky-300 to-cyan-400">
++              PulseDesk
++            </h1>
++            <p className="text-slate-400 text-sm sm:text-base">
++              Customer Support Ticketing System
++            </p>
+           </div>
+ 
+-          {/* Error Alert */}
+-          {error && (
+-            <div className="alert-error mb-6">
+-              <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+-              <span>{error}</span>
++          {/* Auth Box Container */}
++          <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
++            {/* Toggle Tabs */}
++            <div className="grid grid-cols-2 p-1 bg-slate-950/80 rounded-xl border border-slate-800/80">
++              <button
++                type="button"
++                onClick={() => !isLogin && toggleMode()}
++                className={`py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
++                  isLogin
++                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
++                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
++                }`}
++              >
++                Sign In
++              </button>
++              <button
++                type="button"
++                onClick={() => isLogin && toggleMode()}
++                className={`py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
++                  !isLogin
++                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
++                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
++                }`}
++              >
++                Sign Up
++              </button>
+             </div>
+-          )}
+ 
+-          {/* Form */}
+-          <form onSubmit={handleSubmit} className="space-y-6">
+-            {/* Email Field */}
+-            <div>
+-              <label className="block text-sm font-semibold text-slate-200 mb-2">
+-                Email Address
+-              </label>
+-              <div className="relative group">
+-                <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" />
+-                <input
+-                  type="email"
+-                  value={email}
+-                  onChange={(e) => setEmail(e.target.value)}
+-                  placeholder="you@example.com"
+-                  required
+-                  className="input-field pl-10"
+-                  disabled={loading}
+-                />
++            {/* Error Message */}
++            {error && (
++              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
++                <AlertCircle size={18} className="shrink-0 mt-0.5" />
++                <span className="leading-snug">{error}</span>
+               </div>
+-            </div>
++            )}
+ 
+-            {/* Password Field */}
+-            <div>
+-              <label className="block text-sm font-semibold text-slate-200 mb-2">
+-                Password
+-              </label>
+-              <div className="relative group">
+-                <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" />
+-                <input
+-                  type="password"
+-                  value={password}
+-                  onChange={(e) => setPassword(e.target.value)}
+-                  placeholder="At least 6 characters"
+-                  required
+-                  minLength={6}
+-                  className="input-field pl-10"
+-                  disabled={loading}
+-                />
++            {/* Form */}
++            <form onSubmit={handleSubmit} className="space-y-4">
++              {/* Email Input Group */}
++              <div className="space-y-1.5">
++                <label className="block text-xs font-medium text-slate-300 uppercase tracking-wider">
++                  Email Address
++                </label>
++                <div className="relative">
++                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
++                    <Mail size={18} />
++                  </div>
++                  <input
++                    type="email"
++                    value={email}
++                    onChange={(e) => setEmail(e.target.value)}
++                    placeholder="agent@pulsedesk.com"
++                    required
++                    disabled={loading}
++                    className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all disabled:opacity-50"
++                  />
++                </div>
+               </div>
+-            </div>
+ 
+-            {/* Submit Button */}
+-            <button
+-              type="submit"
+-              disabled={loading}
+-              className="btn-primary w-full flex items-center justify-center gap-2 mt-8"
+-            >
+-              {loading ? (
+-                <>
+-                  <Loader size={20} className="animate-spin" />
+-                  Please wait...
+-                </>
+-              ) : (
+-                isLogin ? 'Sign In' : 'Create Account'
+-              )}
+-            </button>
+-          </form>
++              {/* Password Input Group */}
++              <div className="space-y-1.5">
++                <label className="block text-xs font-medium text-slate-300 uppercase tracking-wider">
++                  Password
++                </label>
++                <div className="relative">
++                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
++                    <Lock size={18} />
++                  </div>
++                  <input
++                    type="password"
++                    value={password}
++                    onChange={(e) => setPassword(e.target.value)}
++                    placeholder="••••••••"
++                    required
++                    minLength={6}
++                    disabled={loading}
++                    className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all disabled:opacity-50"
++                  />
++                </div>
++              </div>
+ 
+-          {/* Divider */}
+-          <div className="flex items-center gap-4 my-6">
+-            <div className="flex-1 h-px bg-slate-700" />
+-            <span className="text-slate-400 text-sm">or</span>
+-            <div className="flex-1 h-px bg-slate-700" />
++              {/* Submit Button */}
++              <button
++                type="submit"
++                disabled={loading}
++                className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
++              >
++                {loading ? (
++                  <>
++                    <Loader2 size={18} className="animate-spin" />
++                    <span>Processing...</span>
++                  </>
++                ) : (
++                  <>
++                    <span>
++                      {isLogin
++                        ? "Sign In to Dashboard"
++                        : "Create Agent Account"}
++                    </span>
++                    <ArrowRight size={16} />
++                  </>
++                )}
++              </button>
++            </form>
++
++            {/* Section Switch Option */}
++            <div className="pt-2 text-center text-xs text-slate-400">
++              {isLogin
++                ? "Don't have an agent account? "
++                : "Already registered? "}
++              <button
++                type="button"
++                onClick={toggleMode}
++                className="text-indigo-400 hover:text-indigo-300 font-semibold underline underline-offset-4 transition-colors"
++              >
++                {isLogin ? "Register now" : "Sign in"}
++              </button>
++            </div>
+           </div>
+ 
+-          {/* Toggle Text */}
+-          <p className="text-center text-slate-400">
+-            {isLogin ? "Don't have an account? " : 'Already have an account? '}
+-            <button
+-              type="button"
+-              onClick={toggleMode}
+-              className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
+-              disabled={loading}
+-            >
+-              {isLogin ? 'Sign Up' : 'Sign In'}
+-            </button>
+-          </p>
++          {/* Quick Demo Info Box */}
++          {isLogin && (
++            <div className="p-3.5 bg-slate-900/40 border border-slate-800/80 rounded-xl text-center text-xs text-slate-400">
++              <span className="font-semibold text-slate-300">Quick Test:</span>{" "}
++              Use any email (e.g.{" "}
++              <code className="text-indigo-300">agent@demo.com</code>) with a
++              password of at least 6 characters.
++            </div>
++          )}
+         </div>
+-
+-        {/* Demo Info */}
+-        {isLogin && (
+-          <div className="mt-8 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-center animate-slideInUp" style={{ animationDelay: '0.2s' }}>
+-            <p className="text-slate-400 text-sm">
+-              <span className="font-semibold text-indigo-400">Demo Account:</span><br />
+-              Use any email with password (min 6 chars)
+-            </p>
+-          </div>
+-        )}
+       </div>
+ 
+       {/* Footer */}
+-      <footer className="absolute bottom-0 left-0 right-0 py-6 text-center text-slate-500 text-sm border-t border-slate-800">
+-        <p>&copy; 2026 PulseDesk. All rights reserved. | <span className="text-indigo-400">v1.0.0</span></p>
++      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-900 z-10">
++        <p>&copy; 2026 PulseDesk Support System. All rights reserved.</p>
+       </footer>
+     </div>
+   );
+diff --git a/client/src/pages/DashboardPage.jsx b/client/src/pages/DashboardPage.jsx
+index beecefe..a371a9d 100644
+--- a/client/src/pages/DashboardPage.jsx
++++ b/client/src/pages/DashboardPage.jsx
+@@ -1,12 +1,22 @@
+-import { useState, useEffect } from 'react';
+-import { useAuth } from '../context/AuthContext';
+-import { ticketsAPI } from '../services/api';
+-import { LogOut, Plus, Settings, Loader, ChevronDown } from 'lucide-react';
+-import { useNavigate } from 'react-router-dom';
+-import { CreateTicketModal } from '../components/CreateTicketModal';
+-import { TicketCard } from '../components/TicketCard';
+-import { StatsBar } from '../components/StatsBar';
+-import { FilterBar } from '../components/FilterBar';
++import { useState, useEffect, useRef } from "react";
++import { useAuth } from "../context/AuthContext";
++import { ticketsAPI } from "../services/api";
++import {
++  LogOut,
++  Plus,
++  Settings,
++  Loader2,
++  ChevronDown,
++  Search,
++  Ticket,
++  AlertCircle,
++  RefreshCw,
++} from "lucide-react";
++import { useNavigate } from "react-router-dom";
++import { CreateTicketModal } from "../components/CreateTicketModal";
++import { TicketCard } from "../components/TicketCard";
++import { StatsBar } from "../components/StatsBar";
++import { FilterBar } from "../components/FilterBar";
+ 
+ export const DashboardPage = () => {
+   const { user, logout } = useAuth();
+@@ -14,20 +24,37 @@ export const DashboardPage = () => {
+   const [tickets, setTickets] = useState([]);
+   const [loading, setLoading] = useState(true);
+   const [showCreateModal, setShowCreateModal] = useState(false);
+-  const [statusFilter, setStatusFilter] = useState('');
+-  const [priorityFilter, setPriorityFilter] = useState('');
+-  const [searchTerm, setSearchTerm] = useState('');
+-  const [error, setError] = useState('');
++  const [statusFilter, setStatusFilter] = useState("");
++  const [priorityFilter, setPriorityFilter] = useState("");
++  const [searchTerm, setSearchTerm] = useState("");
++  const [error, setError] = useState("");
++
++  // Menu State & DOM Reference for Outside Click Detection
+   const [showUserMenu, setShowUserMenu] = useState(false);
++  const userMenuRef = useRef(null);
++
++  // Close user menu when clicking anywhere outside
++  useEffect(() => {
++    const handleClickOutside = (event) => {
++      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
++        setShowUserMenu(false);
++      }
++    };
++    document.addEventListener("mousedown", handleClickOutside);
++    return () => document.removeEventListener("mousedown", handleClickOutside);
++  }, []);
+ 
+   const fetchTickets = async () => {
+     try {
+       setLoading(true);
+-      setError('');
+-      const response = await ticketsAPI.getTickets(statusFilter, priorityFilter);
++      setError("");
++      const response = await ticketsAPI.getTickets(
++        statusFilter,
++        priorityFilter,
++      );
+       setTickets(response.tickets || []);
+     } catch (err) {
+-      setError('Failed to load tickets');
++      setError("Failed to fetch tickets from server.");
+       console.error(err);
+     } finally {
+       setLoading(false);
+@@ -39,8 +66,16 @@ export const DashboardPage = () => {
+   }, [statusFilter, priorityFilter]);
+ 
+   const handleLogout = async () => {
++    setShowUserMenu(false);
+     await logout();
+-    navigate('/login');
++    navigate("/login");
++  };
++
++  const handleAccountSettings = () => {
++    setShowUserMenu(false);
++    alert(
++      `Account Settings for ${user?.email}\nAgent ID: ${user?.id || "AG-101"}\nRole: Support Agent`,
++    );
+   };
+ 
+   const handleCreateTicket = async (ticketData) => {
+@@ -49,22 +84,22 @@ export const DashboardPage = () => {
+         ticketData.title,
+         ticketData.description,
+         ticketData.priority,
+-        ticketData.status
++        ticketData.status,
+       );
+       setShowCreateModal(false);
+       fetchTickets();
+     } catch (err) {
+-      setError('Failed to create ticket');
++      setError("Failed to create ticket. Please check backend API.");
+     }
+   };
+ 
+   const handleDeleteTicket = async (ticketId) => {
+-    if (confirm('Are you sure you want to delete this ticket?')) {
++    if (window.confirm("Are you sure you want to delete this ticket?")) {
+       try {
+         await ticketsAPI.deleteTicket(ticketId);
+         fetchTickets();
+       } catch (err) {
+-        setError('Failed to delete ticket');
++        setError("Failed to delete ticket.");
+       }
+     }
+   };
+@@ -74,62 +109,100 @@ export const DashboardPage = () => {
+       await ticketsAPI.updateTicket(ticketId, { status: newStatus });
+       fetchTickets();
+     } catch (err) {
+-      setError('Failed to update ticket');
++      setError("Failed to update ticket status.");
+     }
+   };
+ 
+-  const filteredTickets = tickets.filter((ticket) =>
+-    ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+-    ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+-  );
++  const filteredTickets = tickets.filter((ticket) => {
++    const titleMatch = ticket.title
++      ?.toLowerCase()
++      .includes(searchTerm.toLowerCase());
++    const descMatch = ticket.description
++      ?.toLowerCase()
++      .includes(searchTerm.toLowerCase());
++    return titleMatch || descMatch;
++  });
+ 
+   const stats = {
+     total: tickets.length,
+-    open: tickets.filter((t) => t.status === 'open').length,
+-    inProgress: tickets.filter((t) => t.status === 'in-progress').length,
+-    resolved: tickets.filter((t) => t.status === 'resolved').length,
++    open: tickets.filter((t) => t.status?.toLowerCase() === "open").length,
++    inProgress: tickets.filter(
++      (t) => t.status?.toLowerCase().replace("-", " ") === "in progress",
++    ).length,
++    resolved: tickets.filter((t) => t.status?.toLowerCase() === "resolved")
++      .length,
+   };
+ 
+   return (
+-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950/10 to-slate-950 flex flex-col">
+-      {/* Navbar */}
+-      <nav className="bg-slate-900/80 backdrop-blur-md border-b border-slate-700 sticky top-0 z-40 animate-slideInDown">
+-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+-          <div>
+-            <h1 className="text-3xl font-bold text-gradient">PulseDesk</h1>
+-            <p className="text-xs text-slate-400 mt-1">Support Ticketing System</p>
++    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
++      {/* Top Navbar */}
++      <nav className="bg-slate-900/90 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-40">
++        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex justify-between items-center">
++          {/* Logo */}
++          <div className="flex items-center gap-3">
++            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
++              <Ticket size={22} />
++            </div>
++            <div>
++              <h1 className="text-xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-sky-300 to-cyan-400">
++                PulseDesk
++              </h1>
++              <p className="text-[11px] text-slate-400 font-medium">
++                Customer Support Portal
++              </p>
++            </div>
+           </div>
+ 
+-          <div className="flex items-center gap-6">
+-            {/* User Menu */}
+-            <div className="relative">
++          {/* User Profile Controls with Outside Click Listener */}
++          <div className="flex items-center gap-4">
++            <div className="relative" ref={userMenuRef}>
+               <button
+-                onClick={() => setShowUserMenu(!showUserMenu)}
+-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition-smooth group"
++                type="button"
++                onClick={() => setShowUserMenu((prev) => !prev)}
++                className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-slate-700 transition-all text-left"
+               >
+-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
+-                  {user?.email.charAt(0).toUpperCase()}
++                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-md">
++                  {user?.email?.charAt(0).toUpperCase() || "A"}
+                 </div>
+-                <div className="text-left hidden sm:block">
+-                  <p className="text-sm font-semibold text-white line-clamp-1">{user?.email}</p>
+-                  <p className="text-xs text-slate-400">Support Agent</p>
++                <div className="hidden sm:block">
++                  <p className="text-xs font-semibold text-slate-200 truncate max-w-[150px]">
++                    {user?.email}
++                  </p>
++                  <p className="text-[10px] text-indigo-400 font-medium">
++                    Support Agent
++                  </p>
+                 </div>
+-                <ChevronDown size={16} className={`transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
++                <ChevronDown
++                  size={14}
++                  className={`text-slate-400 transition-transform ${showUserMenu ? "rotate-180" : ""}`}
++                />
+               </button>
+ 
+-              {/* Dropdown Menu */}
++              {/* User Dropdown */}
+               {showUserMenu && (
+-                <div className="absolute top-full right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl animate-slideInDown z-50">
+-                  <button className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-smooth flex items-center gap-2">
+-                    <Settings size={18} />
+-                    Profile Settings
++                <div className="absolute top-full right-0 mt-2 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden z-50">
++                  <div className="p-3 border-b border-slate-800 bg-slate-950/50">
++                    <p className="text-[11px] text-slate-400">Signed in as</p>
++                    <p className="text-xs font-semibold text-slate-200 truncate">
++                      {user?.email}
++                    </p>
++                  </div>
++
++                  <button
++                    type="button"
++                    onClick={handleAccountSettings}
++                    className="w-full text-left px-4 py-2.5 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2.5 transition-colors"
++                  >
++                    <Settings size={15} />
++                    Account Settings
+                   </button>
+-                  <div className="h-px bg-slate-700" />
++
+                   <button
++                    type="button"
+                     onClick={handleLogout}
+-                    className="w-full text-left px-4 py-3 hover:bg-red-950/30 text-red-300 transition-smooth flex items-center gap-2"
++                    className="w-full text-left px-4 py-2.5 text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors border-t border-slate-800/80"
+                   >
+-                    <LogOut size={18} />
++                    <LogOut size={15} />
+                     Logout
+                   </button>
+                 </div>
+@@ -139,52 +212,63 @@ export const DashboardPage = () => {
+         </div>
+       </nav>
+ 
+-      {/* Main Content */}
+-      <main className="flex-1 max-w-7xl mx-auto w-full section-spacing">
+-        {/* Error Alert */}
++      {/* Main Content Workspace */}
++      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 space-y-8">
++        {/* Error Alert Banner */}
+         {error && (
+-          <div className="alert-error mb-8">
+-            <span>⚠️</span>
+-            <div>
+-              <p className="font-semibold">Error</p>
+-              <p>{error}</p>
++          <div className="flex items-center justify-between p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
++            <div className="flex items-center gap-3">
++              <AlertCircle size={20} className="shrink-0" />
++              <span>{error}</span>
+             </div>
++            <button
++              onClick={fetchTickets}
++              className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors"
++            >
++              <RefreshCw size={12} /> Retry
++            </button>
+           </div>
+         )}
+ 
+-        {/* Stats Section */}
+-        <div className="mb-12 animate-slideInUp">
+-          <div className="mb-4">
+-            <h2 className="text-2xl font-bold text-white">Ticket Overview</h2>
+-            <p className="text-slate-400 mt-1">Quick summary of your support tickets</p>
++        {/* Stats Summary */}
++        <section className="space-y-3">
++          <div>
++            <h2 className="text-lg font-bold text-slate-100">
++              Ticket Metrics Overview
++            </h2>
++            <p className="text-xs text-slate-400">
++              Live breakdown of active support request queue
++            </p>
+           </div>
+           <StatsBar stats={stats} />
+-        </div>
++        </section>
+ 
+-        {/* Controls Section */}
+-        <div className="mb-8 animate-slideInUp" style={{ animationDelay: '0.1s' }}>
+-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+-            <div className="md:col-span-2">
+-              <label className="block text-sm font-semibold text-slate-200 mb-2">Search Tickets</label>
++        {/* Toolbar */}
++        <section className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-5 space-y-4">
++          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
++            {/* Search Input Box */}
++            <div className="relative flex-1">
++              <Search
++                size={18}
++                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
++              />
+               <input
+                 type="text"
+-                placeholder="Search by title or description..."
++                placeholder="Search tickets by title or content..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+-                className="input-field"
++                className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+               />
+             </div>
+ 
+-            <div>
+-              <label className="block text-sm font-semibold text-slate-200 mb-2">&nbsp;</label>
+-              <button
+-                onClick={() => setShowCreateModal(true)}
+-                className="btn-primary w-full flex items-center justify-center gap-2 h-11"
+-              >
+-                <Plus size={20} />
+-                New Ticket
+-              </button>
+-            </div>
++            {/* Create Ticket Trigger */}
++            <button
++              onClick={() => setShowCreateModal(true)}
++              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-sm rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] shrink-0"
++            >
++              <Plus size={18} />
++              <span>New Ticket</span>
++            </button>
+           </div>
+ 
+           {/* Filters */}
+@@ -195,108 +279,92 @@ export const DashboardPage = () => {
+             setPriorityFilter={setPriorityFilter}
+             onRefresh={fetchTickets}
+           />
+-        </div>
++        </section>
+ 
+-        {/* Tickets Grid */}
+-        <div className="animate-slideInUp" style={{ animationDelay: '0.2s' }}>
+-          <div className="mb-6">
+-            <h2 className="text-2xl font-bold text-white">Tickets</h2>
+-            <p className="text-slate-400 mt-1">
+-              {filteredTickets.length === 0
+-                ? 'No tickets found'
+-                : `Showing ${filteredTickets.length} ticket${filteredTickets.length !== 1 ? 's' : ''}`}
+-            </p>
++        {/* Tickets Grid Display */}
++        <section className="space-y-4">
++          <div className="flex items-center justify-between">
++            <div>
++              <h2 className="text-lg font-bold text-slate-100">
++                Support Tickets
++              </h2>
++              <p className="text-xs text-slate-400">
++                {filteredTickets.length === 0
++                  ? "No matching tickets found"
++                  : `Displaying ${filteredTickets.length} ticket${filteredTickets.length !== 1 ? "s" : ""}`}
++              </p>
++            </div>
+           </div>
+ 
++          {/* Loading / Empty / Grid States */}
+           {loading ? (
+-            <div className="flex justify-center items-center py-20">
+-              <div className="text-center">
+-                <Loader size={48} className="animate-spin text-indigo-400 mx-auto mb-4" />
+-                <p className="text-slate-400">Loading tickets...</p>
+-              </div>
++            <div className="flex flex-col items-center justify-center py-20 bg-slate-900/30 border border-slate-800/50 rounded-2xl">
++              <Loader2
++                size={36}
++                className="animate-spin text-indigo-400 mb-3"
++              />
++              <p className="text-xs text-slate-400">Loading support queue...</p>
+             </div>
+           ) : filteredTickets.length === 0 ? (
+-            <div className="text-center py-16 card">
+-              <div className="inline-block p-4 rounded-full bg-slate-800 mb-4">
+-                <Plus size={32} className="text-slate-400" />
++            <div className="text-center py-16 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 space-y-4">
++              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-slate-400">
++                <Ticket size={24} />
++              </div>
++              <div className="space-y-1">
++                <h3 className="text-base font-semibold text-slate-200">
++                  No tickets found
++                </h3>
++                <p className="text-xs text-slate-400 max-w-sm mx-auto">
++                  There are no support tickets matching your current search or
++                  filter criteria.
++                </p>
+               </div>
+-              <p className="text-slate-400 text-lg">No tickets found</p>
+-              <p className="text-slate-500 mt-2">Create your first ticket to get started</p>
+               <button
+                 onClick={() => setShowCreateModal(true)}
+-                className="btn-primary mt-6"
++                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-all inline-flex items-center gap-2"
+               >
+-                Create Ticket
++                <Plus size={16} /> Create New Ticket
+               </button>
+             </div>
+           ) : (
+-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+-              {filteredTickets.map((ticket, index) => (
+-                <div key={ticket.id} style={{ animationDelay: `${index * 0.05}s` }} className="animate-slideInUp">
+-                  <TicketCard
+-                    ticket={ticket}
+-                    onDelete={handleDeleteTicket}
+-                    onStatusChange={handleUpdateStatus}
+-                  />
+-                </div>
++            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
++              {filteredTickets.map((ticket) => (
++                <TicketCard
++                  key={ticket.id}
++                  ticket={ticket}
++                  onDelete={handleDeleteTicket}
++                  onStatusChange={handleUpdateStatus}
++                />
+               ))}
+             </div>
+           )}
+-        </div>
++        </section>
+       </main>
+ 
+       {/* Footer */}
+-      <footer className="bg-slate-900/50 backdrop-blur-sm border-t border-slate-700 mt-auto py-8 px-6 animate-slideInUp">
+-        <div className="max-w-7xl mx-auto">
+-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+-            <div>
+-              <h3 className="text-lg font-bold text-gradient mb-3">PulseDesk</h3>
+-              <p className="text-slate-400 text-sm">Professional support ticketing system for modern teams</p>
+-            </div>
+-
+-            <div>
+-              <h4 className="font-semibold text-white mb-3">Quick Links</h4>
+-              <ul className="space-y-2 text-sm text-slate-400">
+-                <li><a href="#" className="hover:text-indigo-400 transition-colors">Dashboard</a></li>
+-                <li><a href="#" className="hover:text-indigo-400 transition-colors">Documentation</a></li>
+-                <li><a href="#" className="hover:text-indigo-400 transition-colors">Support</a></li>
+-              </ul>
+-            </div>
+-
+-            <div>
+-              <h4 className="font-semibold text-white mb-3">Resources</h4>
+-              <ul className="space-y-2 text-sm text-slate-400">
+-                <li><a href="#" className="hover:text-indigo-400 transition-colors">GitHub</a></li>
+-                <li><a href="#" className="hover:text-indigo-400 transition-colors">Report Issues</a></li>
+-                <li><a href="#" className="hover:text-indigo-400 transition-colors">Terms of Service</a></li>
+-              </ul>
+-            </div>
+-          </div>
+-
+-          <div className="border-t border-slate-700 pt-6">
+-            <div className="flex flex-col md:flex-row justify-between items-center">
+-              <p className="text-slate-400 text-sm">&copy; 2026 PulseDesk. All rights reserved.</p>
+-              <div className="flex gap-4 text-sm text-slate-400 mt-4 md:mt-0">
+-                <a href="#" className="hover:text-indigo-400 transition-colors">Privacy</a>
+-                <span className="text-slate-600">•</span>
+-                <a href="#" className="hover:text-indigo-400 transition-colors">Terms</a>
+-                <span className="text-slate-600">•</span>
+-                <a href="#" className="hover:text-indigo-400 transition-colors">Contact</a>
+-                <span className="text-slate-600">•</span>
+-                <span className="text-indigo-400 font-semibold">v1.0.0</span>
+-              </div>
+-            </div>
++      <footer className="bg-slate-900/40 border-t border-slate-900 mt-auto py-6 px-4 sm:px-6 text-xs text-slate-500">
++        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
++          <p>&copy; 2026 PulseDesk. All rights reserved.</p>
++          <div className="flex items-center gap-4">
++            <span className="hover:text-slate-400 cursor-pointer">
++              Privacy Policy
++            </span>
++            <span>•</span>
++            <span className="hover:text-slate-400 cursor-pointer">
++              Terms of Service
++            </span>
++            <span>•</span>
++            <span className="text-indigo-400 font-semibold">v1.0.0</span>
+           </div>
+         </div>
+       </footer>
+ 
+-      {/* Create Ticket Modal */}
+-      {showCreateModal && (
+-        <CreateTicketModal
+-          onClose={() => setShowCreateModal(false)}
+-          onSubmit={handleCreateTicket}
+-        />
+-      )}
++      {/* Modal Component */}
++      <CreateTicketModal
++        isOpen={showCreateModal}
++        onClose={() => setShowCreateModal(false)}
++        onCreate={handleCreateTicket}
++      />
+     </div>
+   );
+ };
+diff --git a/server/routes/tickets.js b/server/routes/tickets.js
+index fed4a83..cdf77de 100644
+--- a/server/routes/tickets.js
++++ b/server/routes/tickets.js
+@@ -1,5 +1,5 @@
+-const express = require('express');
+-const { authenticateJWT } = require('../middleware/auth');
++const express = require("express");
++const { authenticateJWT } = require("../middleware/auth");
+ 
+ const router = express.Router();
+ 
+@@ -7,82 +7,91 @@ const router = express.Router();
+ router.use(authenticateJWT);
+ 
+ // GET /api/tickets - Get all tickets for authenticated user with optional filters
+-router.get('/', (req, res) => {
++router.get("/", (req, res) => {
+   try {
+     const db = global.db;
+     const userId = req.user.id;
+     const { status, priority } = req.query;
+ 
+-    let sql = 'SELECT * FROM tickets WHERE user_id = ?';
++    let sql = "SELECT * FROM tickets WHERE user_id = ?";
+     const params = [userId];
+ 
+-    // Apply filters
++    // Apply filters with case-insensitive handling
+     if (status) {
+-      sql += ' AND status = ?';
++      sql += " AND LOWER(status) = LOWER(?)";
+       params.push(status);
+     }
+ 
+     if (priority) {
+-      sql += ' AND priority = ?';
++      sql += " AND LOWER(priority) = LOWER(?)";
+       params.push(priority);
+     }
+ 
+-    sql += ' ORDER BY created_at DESC';
++    sql += " ORDER BY created_at DESC";
+ 
+     const tickets = db.all(sql, params);
+ 
+     res.json({ tickets });
+   } catch (err) {
+-    console.error('Get tickets error:', err);
+-    res.status(500).json({ error: 'Internal server error' });
++    console.error("Get tickets error:", err);
++    res.status(500).json({ error: "Internal server error" });
+   }
+ });
+ 
+ // POST /api/tickets - Create new ticket
+-router.post('/', (req, res) => {
++router.post("/", (req, res) => {
+   try {
+     const db = global.db;
+     const userId = req.user.id;
+-    const { title, description, priority = 'medium', status = 'open' } = req.body;
++    const {
++      title,
++      description,
++      priority = "Medium",
++      status = "Open",
++    } = req.body;
+ 
+     // Validation
+     if (!title || !description) {
+-      return res.status(400).json({ error: 'Title and description are required' });
++      return res
++        .status(400)
++        .json({ error: "Title and description are required" });
+     }
+ 
+-    // Validate priority
+-    const validPriorities = ['low', 'medium', 'high'];
+-    if (!validPriorities.includes(priority)) {
+-      return res.status(400).json({ error: 'Invalid priority' });
++    // Normalize input for case-insensitive validation
++    const normalizedPriority = priority.toLowerCase();
++    const normalizedStatus = status.toLowerCase().replace("-", " ");
++
++    const validPriorities = ["low", "medium", "high"];
++    if (!validPriorities.includes(normalizedPriority)) {
++      return res.status(400).json({ error: "Invalid priority" });
+     }
+ 
+-    // Validate status
+-    const validStatuses = ['open', 'in-progress', 'resolved', 'closed'];
+-    if (!validStatuses.includes(status)) {
+-      return res.status(400).json({ error: 'Invalid status' });
++    const validStatuses = ["open", "in progress", "resolved", "closed"];
++    if (!validStatuses.includes(normalizedStatus)) {
++      return res.status(400).json({ error: "Invalid status" });
+     }
+ 
+-    // Insert ticket
++    // Insert ticket into SQLite
+     db.run(
+-      'INSERT INTO tickets (user_id, title, description, priority, status) VALUES (?, ?, ?, ?, ?)',
+-      [userId, title, description, priority, status]
++      "INSERT INTO tickets (user_id, title, description, priority, status) VALUES (?, ?, ?, ?, ?)",
++      [userId, title.trim(), description.trim(), priority, status],
+     );
+ 
+-    // Get the inserted ticket
++    // Fetch newly created ticket
+     const ticket = db.get(
+-      'SELECT * FROM tickets WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+-      [userId]
++      "SELECT * FROM tickets WHERE user_id = ? ORDER BY id DESC LIMIT 1",
++      [userId],
+     );
+ 
+     res.status(201).json({ ticket });
+   } catch (err) {
+-    console.error('Create ticket error:', err);
+-    res.status(500).json({ error: 'Internal server error' });
++    console.error("Create ticket error:", err);
++    res.status(500).json({ error: "Internal server error creating ticket" });
+   }
+ });
+ 
+ // PUT /api/tickets/:id - Update ticket
+-router.put('/:id', (req, res) => {
++router.put("/:id", (req, res) => {
+   try {
+     const db = global.db;
+     const userId = req.user.id;
+@@ -90,9 +99,12 @@ router.put('/:id', (req, res) => {
+     const { title, description, priority, status } = req.body;
+ 
+     // Check if ticket exists and belongs to user
+-    const ticket = db.get('SELECT * FROM tickets WHERE id = ? AND user_id = ?', [ticketId, userId]);
++    const ticket = db.get(
++      "SELECT * FROM tickets WHERE id = ? AND user_id = ?",
++      [ticketId, userId],
++    );
+     if (!ticket) {
+-      return res.status(404).json({ error: 'Ticket not found' });
++      return res.status(404).json({ error: "Ticket not found" });
+     }
+ 
+     // Build update query dynamically
+@@ -100,73 +112,82 @@ router.put('/:id', (req, res) => {
+     const params = [];
+ 
+     if (title !== undefined) {
+-      updates.push('title = ?');
+-      params.push(title);
++      updates.push("title = ?");
++      params.push(title.trim());
+     }
+ 
+     if (description !== undefined) {
+-      updates.push('description = ?');
+-      params.push(description);
++      updates.push("description = ?");
++      params.push(description.trim());
+     }
+ 
+     if (priority !== undefined) {
+-      const validPriorities = ['low', 'medium', 'high'];
+-      if (!validPriorities.includes(priority)) {
+-        return res.status(400).json({ error: 'Invalid priority' });
++      const validPriorities = ["low", "medium", "high"];
++      if (!validPriorities.includes(priority.toLowerCase())) {
++        return res.status(400).json({ error: "Invalid priority" });
+       }
+-      updates.push('priority = ?');
++      updates.push("priority = ?");
+       params.push(priority);
+     }
+ 
+     if (status !== undefined) {
+-      const validStatuses = ['open', 'in-progress', 'resolved', 'closed'];
+-      if (!validStatuses.includes(status)) {
+-        return res.status(400).json({ error: 'Invalid status' });
++      const normalizedStatus = status.toLowerCase().replace("-", " ");
++      const validStatuses = ["open", "in progress", "resolved", "closed"];
++      if (!validStatuses.includes(normalizedStatus)) {
++        return res.status(400).json({ error: "Invalid status" });
+       }
+-      updates.push('status = ?');
++      updates.push("status = ?");
+       params.push(status);
+     }
+ 
+     if (updates.length === 0) {
+-      return res.status(400).json({ error: 'No fields to update' });
++      return res.status(400).json({ error: "No fields to update" });
+     }
+ 
+-    updates.push('updated_at = CURRENT_TIMESTAMP');
++    updates.push("updated_at = CURRENT_TIMESTAMP");
+     params.push(ticketId, userId);
+ 
+-    const sql = `UPDATE tickets SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`;
++    const sql = `UPDATE tickets SET ${updates.join(", ")} WHERE id = ? AND user_id = ?`;
+     db.run(sql, params);
+ 
+     // Get updated ticket
+-    const updatedTicket = db.get('SELECT * FROM tickets WHERE id = ?', [ticketId]);
++    const updatedTicket = db.get("SELECT * FROM tickets WHERE id = ?", [
++      ticketId,
++    ]);
+ 
+     res.json({ ticket: updatedTicket });
+   } catch (err) {
+-    console.error('Update ticket error:', err);
+-    res.status(500).json({ error: 'Internal server error' });
++    console.error("Update ticket error:", err);
++    res.status(500).json({ error: "Internal server error" });
+   }
+ });
+ 
+ // DELETE /api/tickets/:id - Delete ticket
+-router.delete('/:id', (req, res) => {
++router.delete("/:id", (req, res) => {
+   try {
+     const db = global.db;
+     const userId = req.user.id;
+     const ticketId = req.params.id;
+ 
+     // Check if ticket exists and belongs to user
+-    const ticket = db.get('SELECT * FROM tickets WHERE id = ? AND user_id = ?', [ticketId, userId]);
++    const ticket = db.get(
++      "SELECT * FROM tickets WHERE id = ? AND user_id = ?",
++      [ticketId, userId],
++    );
+     if (!ticket) {
+-      return res.status(404).json({ error: 'Ticket not found' });
++      return res.status(404).json({ error: "Ticket not found" });
+     }
+ 
+     // Delete ticket
+-    db.run('DELETE FROM tickets WHERE id = ? AND user_id = ?', [ticketId, userId]);
++    db.run("DELETE FROM tickets WHERE id = ? AND user_id = ?", [
++      ticketId,
++      userId,
++    ]);
+ 
+-    res.json({ message: 'Ticket deleted successfully' });
++    res.json({ message: "Ticket deleted successfully" });
+   } catch (err) {
+-    console.error('Delete ticket error:', err);
+-    res.status(500).json({ error: 'Internal server error' });
++    console.error("Delete ticket error:", err);
++    res.status(500).json({ error: "Internal server error" });
+   }
+ });
+ 
