@@ -6,11 +6,13 @@
   "scripts": {
     "dev:client": "cd client && npm run dev",
     "dev:server": "cd server && npm run dev",
+    "build": "npm run build:client && npm run build:server",
     "build:client": "cd client && npm run build",
     "build:server": "cd server && npm run build",
+    "start:server": "cd server && npm run start",
     "install:all": "npm install && cd client && npm install && cd ../server && npm install",
     "dev": "npm run dev:all",
-    "dev:all": "echo \"Start these in separate terminals: npm run dev:client && npm run dev:server\""
+    "dev:all": "echo \"📖 Run these commands in separate terminals:\" && echo \"Terminal 1: npm run dev:client\" && echo \"Terminal 2: npm run dev:server\""
   },
   "keywords": [
     "support",
