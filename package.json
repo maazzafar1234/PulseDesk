@@ -1,0 +1,23 @@
+{
+  "name": "pulsedesk",
+  "version": "1.0.0",
+  "description": "PulseDesk - Lightweight internal customer support ticketing dashboard",
+  "private": true,
+  "scripts": {
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build:client": "cd client && npm run build",
+    "build:server": "cd server && npm run build",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install",
+    "dev": "npm run dev:all",
+    "dev:all": "echo \"Start these in separate terminals: npm run dev:client && npm run dev:server\""
+  },
+  "keywords": [
+    "support",
+    "ticketing",
+    "dashboard",
+    "saas"
+  ],
+  "author": "",
+  "license": "ISC"
+}
