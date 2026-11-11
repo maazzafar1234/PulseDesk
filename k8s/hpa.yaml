@@ -1,0 +1,214 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: pulsedesk
+  namespace: production
+  labels:
+    app: pulsedesk
+    component: backend
+
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: pulsedesk
+  
+  # Scale between 3 and 10 replicas
+  minReplicas: 3
+  maxReplicas: 10
+  
+  # Metrics for scaling decisions
+  metrics:
+    # Scale based on CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70  # Scale up if CPU > 70%
+    
+    # Scale based on memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80  # Scale up if memory > 80%
+    
+    # Scale based on custom metrics (if using Prometheus)
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "1000"  # Scale if avg > 1000 req/sec per pod
+  
+  # Scaling behavior
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30  # Wait 30s before scaling up
+      policies:
+        - type: Percent
+          value: 100  # Double the number of pods
+          periodSeconds: 15
+        - type: Pods
+          value: 2    # Or add 2 pods
+          periodSeconds: 15
+      selectPolicy: Max  # Use whichever scales up more
+    
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+        - type: Percent
+          value: 50   # Scale down to 50%
+          periodSeconds: 60
+        - type: Pods
+          value: 1    # Or remove 1 pod
+          periodSeconds: 60
+      selectPolicy: Min  # Use whichever scales down less
+
+---
+# Metrics Server (required for HPA with CPU/memory metrics)
+# Deploy if not already in cluster
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics-server
+  namespace: kube-system
+  labels:
+    k8s-app: metrics-server
+
+spec:
+  selector:
+    matchLabels:
+      k8s-app: metrics-server
+  
+  replicas: 2
+  
+  template:
+    metadata:
+      labels:
+        k8s-app: metrics-server
+    
+    spec:
+      priorityClassName: system-cluster-critical
+      serviceAccountName: metrics-server
+      
+      containers:
+        - name: metrics-server
+          image: registry.k8s.io/metrics-server/metrics-server:v0.6.4
+          imagePullPolicy: IfNotPresent
+          
+          args:
+            - --cert-dir=/tmp
+            - --secure-port=4443
+            - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+            - --kubelet-insecure-tls
+          
+          ports:
+            - name: https
+              containerPort: 4443
+              protocol: TCP
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 70Mi
+            limits:
+              cpu: 100m
+              memory: 70Mi
+          
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+          
+          volumeMounts:
+            - name: tmp-vol
+              mountPath: /tmp
+      
+      volumes:
+        - name: tmp-vol
+          emptyDir: {}
+
+---
+# Service for metrics-server
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-server
+  namespace: kube-system
+  labels:
+    k8s-app: metrics-server
+
+spec:
+  ports:
+    - name: https
+      port: 443
+      targetPort: 4443
+      protocol: TCP
+  
+  selector:
+    k8s-app: metrics-server
+
+---
+# ServiceAccount for metrics-server
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metrics-server
+  namespace: kube-system
+
+---
+# ClusterRole for metrics-server
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:metrics-server
+
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - nodes
+    verbs:
+      - get
+      - list
+
+---
+# ClusterRoleBinding for metrics-server
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:metrics-server
+
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:metrics-server
+subjects:
+  - kind: ServiceAccount
+    name: metrics-server
+    namespace: kube-system

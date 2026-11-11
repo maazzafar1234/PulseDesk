@@ -6,7 +6,7 @@ const { authenticateJWT } = require('../middleware/auth');
 const router = express.Router();
 
 // POST /api/auth/register
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     const db = global.db;
@@ -21,7 +21,7 @@ router.post('/register', (req, res) => {
     }
 
     // Check if user exists
-    const existingUser = db.get('SELECT id FROM users WHERE email = ?', [email]);
+    const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUser) {
       return res.status(409).json({ error: 'User already exists' });
     }
@@ -30,10 +30,10 @@ router.post('/register', (req, res) => {
     const passwordHash = bcrypt.hashSync(password, 10);
 
     // Insert user
-    db.run('INSERT INTO users (email, password_hash) VALUES (?, ?)', [email, passwordHash]);
+    await db.run('INSERT INTO users (email, password_hash) VALUES (?, ?)', [email, passwordHash]);
 
     // Get the inserted user ID
-    const user = db.get('SELECT id FROM users WHERE email = ?', [email]);
+    const user = await db.get('SELECT id FROM users WHERE email = ?', [email]);
 
     // Create JWT token
     const token = jwt.sign(
@@ -61,7 +61,7 @@ router.post('/register', (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const db = global.db;
@@ -72,7 +72,7 @@ router.post('/login', (req, res) => {
     }
 
     // Find user
-    const user = db.get('SELECT id, email, password_hash FROM users WHERE email = ?', [email]);
+    const user = await db.get('SELECT id, email, password_hash FROM users WHERE email = ?', [email]);
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -120,10 +120,10 @@ router.post('/logout', (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authenticateJWT, (req, res) => {
+router.get('/me', authenticateJWT, async (req, res) => {
   try {
     const db = global.db;
-    const user = db.get('SELECT id, email, created_at FROM users WHERE id = ?', [req.user.id]);
+    const user = await db.get('SELECT id, email, created_at FROM users WHERE id = ?', [req.user.id]);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }

@@ -1,0 +1,197 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pulsedesk
+  namespace: argocd
+  labels:
+    app: pulsedesk
+    managed-by: argocd
+
+spec:
+  # Project configuration
+  project: default
+  
+  # Source configuration (where to pull manifests from)
+  source:
+    repoURL: https://github.com/maazzafar1234/PulseDesk.git
+    targetRevision: main  # or feature/production-prep for testing
+    path: k8s              # Path to K8s manifests
+    
+    # Helm values (if using Helm)
+    helm:
+      releaseName: pulsedesk
+      values: |
+        replicaCount: 3
+        image:
+          repository: 123456789012.dkr.ecr.us-east-1.amazonaws.com/pulsedesk
+          tag: latest
+          pullPolicy: IfNotPresent
+        
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        
+        ingress:
+          enabled: true
+          className: alb
+          hosts:
+            - host: api.pulsedesk.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+  
+  # Destination configuration (where to deploy to)
+  destination:
+    server: https://kubernetes.default.svc  # Current cluster
+    namespace: production
+    name: in-cluster
+  
+  # Sync configuration
+  syncPolicy:
+    automated:
+      prune: true    # Delete resources that are no longer in Git
+      selfHeal: true # Resync if cluster state diverges from Git
+    
+    syncOptions:
+      - CreateNamespace=true  # Auto-create namespace
+      - RespectIgnoreDifferences=true
+    
+    # Manual sync strategy (recommended for production)
+    # automated: {}  # Uncomment for manual sync
+  
+  # Revision history limit
+  revisionHistoryLimit: 10
+  
+  # Ignore differences for specific resources
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Ignore HPA-managed replica count
+
+---
+# Application Set for multiple environments (optional)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: pulsedesk-envs
+  namespace: argocd
+
+spec:
+  generators:
+    - list:
+        elements:
+          - name: dev
+            namespace: dev
+            targetRevision: develop
+          - name: staging
+            namespace: staging
+            targetRevision: staging
+          - name: production
+            namespace: production
+            targetRevision: main
+  
+  template:
+    metadata:
+      name: pulsedesk-{{ name }}
+      labels:
+        app: pulsedesk
+        env: {{ name }}
+    
+    spec:
+      project: default
+      
+      source:
+        repoURL: https://github.com/maazzafar1234/PulseDesk.git
+        targetRevision: {{ targetRevision }}
+        path: k8s
+      
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: {{ namespace }}
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+
+---
+# ArgoCD Notifications Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+
+data:
+  service.slack: |
+    token: $slack-token
+  
+  template.app-deployed: |
+    message: |
+      PulseDesk application {{.app.metadata.name}} has been deployed to {{.app.status.operationState.finishedAt}} successfully.
+      {{if eq .app.status.operationState.phase "Succeeded"}} ✅{{end}}{{if eq .app.status.operationState.phase "Failed"}} ❌{{end}}
+    slack:
+      attachments: |
+        [{
+          "color": "{{if eq .app.status.operationState.phase \"Succeeded\"}}#18be52{{else}}#e96d76{{end}}",
+          "fields": [
+            {
+              "title": "Sync Status",
+              "value": "{{.app.status.syncResult.resources}}"
+            }
+          ]
+        }]
+  
+  trigger.on-sync-failed: |
+    - when: sync_failed
+      oncePer: app.status.syncResult.revision
+      send: [app-sync-failed]
+  
+  trigger.on-deployed: |
+    - when: sync_succeeded
+      oncePer: app.status.syncResult.revision
+      send: [app-deployed]
+
+---
+# RBAC for ArgoCD
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-pulsedesk
+  namespace: argocd
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-pulsedesk
+
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "services", "ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-pulsedesk
+
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-pulsedesk
+subjects:
+  - kind: ServiceAccount
+    name: argocd-pulsedesk
+    namespace: argocd

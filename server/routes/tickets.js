@@ -7,7 +7,7 @@ const router = express.Router();
 router.use(authenticateJWT);
 
 // GET /api/tickets - Get all tickets for authenticated user with optional filters
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const db = global.db;
     const userId = req.user.id;
@@ -29,7 +29,7 @@ router.get("/", (req, res) => {
 
     sql += " ORDER BY created_at DESC";
 
-    const tickets = db.all(sql, params);
+    const tickets = await db.all(sql, params);
 
     res.json({ tickets });
   } catch (err) {
@@ -39,7 +39,7 @@ router.get("/", (req, res) => {
 });
 
 // POST /api/tickets - Create new ticket
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const db = global.db;
     const userId = req.user.id;
@@ -71,14 +71,14 @@ router.post("/", (req, res) => {
       return res.status(400).json({ error: "Invalid status" });
     }
 
-    // Insert ticket into SQLite
-    db.run(
+    // Insert ticket
+    await db.run(
       "INSERT INTO tickets (user_id, title, description, priority, status) VALUES (?, ?, ?, ?, ?)",
       [userId, title.trim(), description.trim(), priority, status],
     );
 
     // Fetch newly created ticket
-    const ticket = db.get(
+    const ticket = await db.get(
       "SELECT * FROM tickets WHERE user_id = ? ORDER BY id DESC LIMIT 1",
       [userId],
     );
@@ -91,7 +91,7 @@ router.post("/", (req, res) => {
 });
 
 // PUT /api/tickets/:id - Update ticket
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const db = global.db;
     const userId = req.user.id;
@@ -99,7 +99,7 @@ router.put("/:id", (req, res) => {
     const { title, description, priority, status } = req.body;
 
     // Check if ticket exists and belongs to user
-    const ticket = db.get(
+    const ticket = await db.get(
       "SELECT * FROM tickets WHERE id = ? AND user_id = ?",
       [ticketId, userId],
     );
@@ -148,10 +148,10 @@ router.put("/:id", (req, res) => {
     params.push(ticketId, userId);
 
     const sql = `UPDATE tickets SET ${updates.join(", ")} WHERE id = ? AND user_id = ?`;
-    db.run(sql, params);
+    await db.run(sql, params);
 
     // Get updated ticket
-    const updatedTicket = db.get("SELECT * FROM tickets WHERE id = ?", [
+    const updatedTicket = await db.get("SELECT * FROM tickets WHERE id = ?", [
       ticketId,
     ]);
 
@@ -163,14 +163,14 @@ router.put("/:id", (req, res) => {
 });
 
 // DELETE /api/tickets/:id - Delete ticket
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const db = global.db;
     const userId = req.user.id;
     const ticketId = req.params.id;
 
     // Check if ticket exists and belongs to user
-    const ticket = db.get(
+    const ticket = await db.get(
       "SELECT * FROM tickets WHERE id = ? AND user_id = ?",
       [ticketId, userId],
     );
@@ -179,7 +179,7 @@ router.delete("/:id", (req, res) => {
     }
 
     // Delete ticket
-    db.run("DELETE FROM tickets WHERE id = ? AND user_id = ?", [
+    await db.run("DELETE FROM tickets WHERE id = ? AND user_id = ?", [
       ticketId,
       userId,
     ]);
