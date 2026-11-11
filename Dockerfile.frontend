@@ -1,0 +1,51 @@
+# Multi-stage build for PulseDesk Frontend
+# Stage 1: Builder - Build React application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY client/package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY client/ .
+
+# Build application
+RUN npm run build
+
+# ============================================================================
+# Stage 2: Runtime - Serve with lightweight HTTP server
+# ============================================================================
+FROM node:20-alpine
+
+# Install dumb-init and http-server
+RUN apk add --no-cache dumb-init curl && \
+    npm install -g http-server
+
+# Create app directory
+WORKDIR /app
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+
+# Copy built application from builder
+COPY --from=builder --chown=nodejs:nodejs /app/dist /app/dist
+
+# Switch to non-root user
+USER nodejs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:5173/ || exit 1
+
+# Expose port
+EXPOSE 5173
+
+# Use dumb-init to handle signals
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start HTTP server
+CMD ["http-server", "dist", "-p", "5173", "--cors", "-o"]

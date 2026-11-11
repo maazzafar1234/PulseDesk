@@ -1,0 +1,63 @@
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build outputs
+dist
+build
+*.tgz
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage
+.nyc_output
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+Jenkins*
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Terraform
+terraform/
+*.tfstate*
+.terraform/
+
+# Kubernetes
+k8s/
+*.yaml
+*.yml
+
+# Other
+.env*
+!.env.example
+.cache
+tmp/
+temp/
+dist/
+data/
+monitoring/
+argocd/

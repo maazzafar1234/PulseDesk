@@ -1,0 +1,321 @@
+version: '3.8'
+
+# PulseDesk - Complete Docker Compose Stack
+# Everything in one place for local development, testing, and deployment
+
+services:
+  # ============================================================================
+  # FRONTEND - React Application (Vite)
+  # ============================================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: pulsedesk-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+      - VITE_API_BASE_URL=http://localhost:5000
+      - NODE_ENV=development
+    volumes:
+      - ./client/src:/app/src
+      - ./client/public:/app/public
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - pulsedesk-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    labels:
+      - "com.pulsedesk.service=frontend"
+      - "com.pulsedesk.description=React frontend application"
+
+  # ============================================================================
+  # BACKEND - Node.js Express API
+  # ============================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: pulsedesk-backend
+    ports:
+      - "5000:5000"
+    environment:
+      # Node Configuration
+      - NODE_ENV=development
+      - PORT=5000
+      
+      # Database Configuration
+      - DATABASE_URL=postgresql://pulsedesk:pulsedesk123@postgres:5432/pulsedesk
+      
+      # JWT Configuration
+      - JWT_SECRET=dev-secret-key-change-in-production
+      - JWT_EXPIRATION=7d
+      
+      # CORS Configuration
+      - FRONTEND_URL=http://localhost:5173
+      
+      # Security
+      - SECURE_COOKIES=false
+      
+      # Monitoring
+      - PROMETHEUS_ENABLED=true
+      - LOG_LEVEL=info
+    volumes:
+      - ./server/index.js:/app/index.js
+      - ./server/db:/app/db
+      - ./server/routes:/app/routes
+      - ./server/middleware:/app/middleware
+      - ./server/data:/app/data
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pulsedesk-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "com.pulsedesk.service=backend"
+      - "com.pulsedesk.description=Express.js API server"
+
+  # ============================================================================
+  # DATABASE - PostgreSQL (Production-like setup)
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: pulsedesk-postgres
+    environment:
+      POSTGRES_USER: pulsedesk
+      POSTGRES_PASSWORD: pulsedesk123
+      POSTGRES_DB: pulsedesk
+      POSTGRES_INITDB_ARGS: "-c ssl=off"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - pulsedesk-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulsedesk -d pulsedesk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "com.pulsedesk.service=database"
+      - "com.pulsedesk.description=PostgreSQL database"
+    command:
+      - "postgres"
+      - "-c"
+      - "log_statement=all"
+      - "-c"
+      - "log_duration=on"
+
+  # ============================================================================
+  # MONITORING - Prometheus
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pulsedesk-prometheus
+    ports:
+      - "9090:9090"
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+      - "--web.enable-admin-api"
+    depends_on:
+      - backend
+    networks:
+      - pulsedesk-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "com.pulsedesk.service=monitoring"
+      - "com.pulsedesk.description=Prometheus metrics collector"
+
+  # ============================================================================
+  # MONITORING - Grafana
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pulsedesk-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - pulsedesk-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    labels:
+      - "com.pulsedesk.service=visualization"
+      - "com.pulsedesk.description=Grafana dashboards"
+
+  # ============================================================================
+  # LOGGING - PgAdmin (Database Management UI)
+  # ============================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pulsedesk-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pulsedesk.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 10
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - pulsedesk-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    labels:
+      - "com.pulsedesk.service=admin"
+      - "com.pulsedesk.description=PostgreSQL admin interface"
+
+  # ============================================================================
+  # OPTIONAL - Redis (for future caching)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: pulsedesk-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pulsedesk-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    labels:
+      - "com.pulsedesk.service=cache"
+      - "com.pulsedesk.description=Redis cache (optional)"
+    profiles:
+      - cache  # Run with: docker-compose --profile cache up
+
+  # ============================================================================
+  # DEVELOPMENT - API Documentation (Swagger/OpenAPI)
+  # ============================================================================
+  api-docs:
+    image: swaggerapi/swagger-ui:latest
+    container_name: pulsedesk-api-docs
+    ports:
+      - "8080:8080"
+    environment:
+      SWAGGER_JSON: /swagger.json
+      SWAGGER_JSON_URL: http://localhost:5000/api/docs
+    volumes:
+      - ./api/swagger.json:/swagger.json
+    depends_on:
+      - backend
+    networks:
+      - pulsedesk-network
+    restart: unless-stopped
+    profiles:
+      - docs  # Run with: docker-compose --profile docs up
+    labels:
+      - "com.pulsedesk.service=documentation"
+      - "com.pulsedesk.description=API documentation"
+
+# ============================================================================
+# NETWORKS - Define networks for service communication
+# ============================================================================
+networks:
+  pulsedesk-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ============================================================================
+# VOLUMES - Persistent data storage
+# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  
+  prometheus_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/prometheus
+  
+  grafana_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/grafana
+  
+  pgadmin_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/pgadmin
+  
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
