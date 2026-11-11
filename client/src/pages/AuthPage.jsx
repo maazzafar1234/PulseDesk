@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Loader } from 'lucide-react';
 
 export const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -31,57 +31,90 @@ export const AuthPage = () => {
     }
   };
 
+  const toggleMode = () => {
+    setIsLogin(!isLogin);
+    setError('');
+    setEmail('');
+    setPassword('');
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo/Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950/20 to-slate-950 flex flex-col items-center justify-center relative overflow-hidden p-4">
+      {/* Animated Background Elements */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-12 animate-slideInDown">
+          <h1 className="text-5xl font-bold text-gradient mb-2">
             PulseDesk
           </h1>
-          <p className="text-slate-400 mt-2 text-sm">Customer Support Ticketing</p>
+          <p className="text-slate-400 text-lg">Customer Support Ticketing System</p>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-slate-900 rounded-xl border border-slate-700 p-8 shadow-2xl backdrop-blur-sm hover:border-slate-600 transition-colors">
-          <h2 className="text-2xl font-bold mb-6 text-center text-white">
-            {isLogin ? 'Sign In' : 'Create Account'}
-          </h2>
+        {/* Auth Card */}
+        <div className="card p-8 shadow-2xl animate-slideInUp">
+          {/* Tabs */}
+          <div className="flex gap-4 mb-8">
+            <button
+              onClick={() => isLogin && toggleMode()}
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-300 ${
+                !isLogin
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              Sign Up
+            </button>
+            <button
+              onClick={() => !isLogin && toggleMode()}
+              className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all duration-300 ${
+                isLogin
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              Sign In
+            </button>
+          </div>
 
           {/* Error Alert */}
           {error && (
-            <div className="mb-4 p-4 bg-red-950/40 border border-red-600/60 rounded-lg flex gap-3 items-start">
-              <AlertCircle size={20} className="text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-200 text-sm font-medium">{error}</p>
+            <div className="alert-error mb-6">
+              <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email Input */}
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email Field */}
             <div>
               <label className="block text-sm font-semibold text-slate-200 mb-2">
                 Email Address
               </label>
-              <div className="relative">
-                <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+              <div className="relative group">
+                <Mail size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-slate-400 transition-all"
+                  className="input-field pl-10"
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            {/* Password Input */}
+            {/* Password Field */}
             <div>
               <label className="block text-sm font-semibold text-slate-200 mb-2">
                 Password
               </label>
-              <div className="relative">
-                <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+              <div className="relative group">
+                <Lock size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-400 transition-colors" />
                 <input
                   type="password"
                   value={password}
@@ -89,7 +122,8 @@ export const AuthPage = () => {
                   placeholder="At least 6 characters"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-slate-400 transition-all"
+                  className="input-field pl-10"
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -98,39 +132,55 @@ export const AuthPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-indigo-500/50 mt-6"
+              className="btn-primary w-full flex items-center justify-center gap-2 mt-8"
             >
-              {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Create Account'}
+              {loading ? (
+                <>
+                  <Loader size={20} className="animate-spin" />
+                  Please wait...
+                </>
+              ) : (
+                isLogin ? 'Sign In' : 'Create Account'
+              )}
             </button>
           </form>
 
-          {/* Toggle Auth Mode */}
-          <div className="mt-6 text-center border-t border-slate-700 pt-6">
-            <p className="text-slate-400 text-sm">
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError('');
-                  setEmail('');
-                  setPassword('');
-                }}
-                className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
-              >
-                {isLogin ? 'Sign Up' : 'Sign In'}
-              </button>
-            </p>
+          {/* Divider */}
+          <div className="flex items-center gap-4 my-6">
+            <div className="flex-1 h-px bg-slate-700" />
+            <span className="text-slate-400 text-sm">or</span>
+            <div className="flex-1 h-px bg-slate-700" />
           </div>
+
+          {/* Toggle Text */}
+          <p className="text-center text-slate-400">
+            {isLogin ? "Don't have an account? " : 'Already have an account? '}
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
+              disabled={loading}
+            >
+              {isLogin ? 'Sign Up' : 'Sign In'}
+            </button>
+          </p>
         </div>
 
-        {/* Demo Credentials */}
+        {/* Demo Info */}
         {isLogin && (
-          <p className="text-center text-slate-500 text-xs mt-4">
-            Demo: Use any email@example.com with password (min 6 chars)
-          </p>
+          <div className="mt-8 p-4 bg-slate-900/50 rounded-lg border border-slate-700 text-center animate-slideInUp" style={{ animationDelay: '0.2s' }}>
+            <p className="text-slate-400 text-sm">
+              <span className="font-semibold text-indigo-400">Demo Account:</span><br />
+              Use any email with password (min 6 chars)
+            </p>
+          </div>
         )}
       </div>
+
+      {/* Footer */}
+      <footer className="absolute bottom-0 left-0 right-0 py-6 text-center text-slate-500 text-sm border-t border-slate-800">
+        <p>&copy; 2026 PulseDesk. All rights reserved. | <span className="text-indigo-400">v1.0.0</span></p>
+      </footer>
     </div>
   );
 };

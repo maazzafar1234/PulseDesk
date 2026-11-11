@@ -28,9 +28,10 @@ export const TicketCard = ({ ticket, onDelete, onStatusChange }) => {
   };
 
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-700 hover:border-slate-600 hover:shadow-lg p-5 transition-all duration-200 backdrop-blur-sm">
-      <div className="mb-4">
-        <h3 className="text-base font-semibold text-white mb-2 line-clamp-2">
+    <div className="card p-6 hover:shadow-2xl hover:shadow-indigo-500/10 group transition-all duration-300 hover:-translate-y-1">
+      {/* Header */}
+      <div className="mb-4 pb-4 border-b border-slate-700">
+        <h3 className="text-lg font-semibold text-white mb-2 group-hover:text-indigo-300 transition-colors line-clamp-2">
           {ticket.title}
         </h3>
         <p className="text-slate-400 text-sm line-clamp-2">
@@ -38,53 +39,58 @@ export const TicketCard = ({ ticket, onDelete, onStatusChange }) => {
         </p>
       </div>
 
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex gap-2">
-          <span
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
-              statusColors[ticket.status] || statusColors.open
-            }`}
-          >
-            {ticket.status.replace('-', ' ')}
-          </span>
-          <span
-            className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
-              priorityBadgeColors[ticket.priority]
-            }`}
-          >
-            {ticket.priority}
-          </span>
-        </div>
+      {/* Badges */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <span
+          className={`badge ${
+            statusColors[ticket.status] || statusColors.open
+          }`}
+        >
+          {ticket.status.replace('-', ' ')}
+        </span>
+        <span className={`badge ${priorityBadgeColors[ticket.priority]}`}>
+          {ticket.priority}
+        </span>
       </div>
 
-      <div className="text-xs text-slate-400 mb-4 pb-3 border-t border-slate-700">
-        <p className="mt-3">Created {formatDate(ticket.created_at)}</p>
+      {/* Date */}
+      <div className="text-xs text-slate-400 mb-4 pb-4 border-b border-slate-700">
+        Created {formatDate(ticket.created_at)}
       </div>
 
-      {/* Action Buttons */}
+      {/* Actions */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <button
             onClick={() => setShowStatusMenu(!showStatusMenu)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-slate-200 text-sm font-medium transition-all duration-200"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600/20 to-cyan-600/20 hover:from-indigo-600/40 hover:to-cyan-600/40 border border-indigo-500/30 rounded-lg text-indigo-300 text-sm font-medium transition-all duration-200 group-hover:border-indigo-500/60 group-hover:shadow-lg group-hover:shadow-indigo-500/20"
           >
             <Clock size={16} />
-            Status
-            <ChevronDown size={14} className={`transition-transform ${showStatusMenu ? 'rotate-180' : ''}`} />
+            Update Status
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-300 ${
+                showStatusMenu ? 'rotate-180' : ''
+              }`}
+            />
           </button>
 
+          {/* Status Dropdown */}
           {showStatusMenu && (
-            <div className="absolute top-full left-0 mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-20 backdrop-blur-sm">
-              {statusOptions.map((status) => (
+            <div className="absolute top-full left-0 mt-2 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-20 backdrop-blur-sm animate-slideInUp overflow-hidden">
+              {statusOptions.map((status, idx) => (
                 <button
                   key={status}
                   onClick={() => {
                     onStatusChange(ticket.id, status);
                     setShowStatusMenu(false);
                   }}
-                  className={`w-full text-left px-4 py-2.5 hover:bg-slate-700 text-sm capitalize font-medium transition-colors ${
-                    ticket.status === status ? 'bg-indigo-950/60 text-indigo-300 border-l-2 border-indigo-500' : 'text-slate-300'
+                  className={`w-full text-left px-4 py-2.5 text-sm capitalize font-medium transition-all duration-200 border-b border-slate-700 last:border-b-0 ${
+                    ticket.status === status
+                      ? 'bg-indigo-950/60 text-indigo-300 border-l-2 border-l-indigo-500 pl-3'
+                      : 'text-slate-300 hover:bg-slate-700 hover:text-white'
                   }`}
+                  style={{ animationDelay: `${idx * 0.05}s` }}
                 >
                   {status.replace('-', ' ')}
                 </button>
@@ -95,7 +101,7 @@ export const TicketCard = ({ ticket, onDelete, onStatusChange }) => {
 
         <button
           onClick={() => onDelete(ticket.id)}
-          className="px-3 py-2.5 bg-red-950/40 hover:bg-red-950/60 border border-red-600/60 rounded-lg text-red-300 transition-colors duration-200 font-medium"
+          className="px-4 py-2.5 bg-red-950/20 hover:bg-red-950/40 border border-red-600/30 hover:border-red-600/60 rounded-lg text-red-300 transition-all duration-200 font-medium hover:shadow-lg hover:shadow-red-500/20 active:scale-95"
           title="Delete ticket"
         >
           <Trash2 size={16} />
