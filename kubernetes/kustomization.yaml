@@ -9,7 +9,6 @@ resources:
   - backend-deployment.yaml
   - frontend-deployment.yaml
 
-labels:
-  - pairs:
-      app: pulsedesk
-      environment: production
+commonLabels:
+  app: pulsedesk
+  environment: production
