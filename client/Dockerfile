@@ -4,7 +4,7 @@ FROM node:18-alpine as builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev || npm ci --omit=dev || npm install
 
 COPY . .
 RUN npm run build
