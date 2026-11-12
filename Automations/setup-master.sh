@@ -47,11 +47,25 @@ echo "deb https://pkg.jenkins.io/debian-stable binary/" | sudo tee \
 sudo apt-get update -o APT::Get::AllowUnauthenticated=true 2>/dev/null || \
   handle_error "apt-get update failed, trying without jenkins repo"
 
-# Try to install jenkins
+# Try to install jenkins via apt
 if ! sudo apt-get install -y jenkins 2>/dev/null; then
-  handle_error "Jenkins repo installation failed, trying alternative method"
-  # If jenkins repo fails, we can skip jenkins for now and continue with other tools
-  echo -e "${YELLOW}Jenkins installation skipped - will need manual setup${NC}"
+  # Fallback: Try snap installation
+  echo -e "${YELLOW}APT Jenkins installation failed, trying snap...${NC}"
+  if sudo snap install jenkins --classic 2>/dev/null; then
+    sudo systemctl start jenkins 2>/dev/null || handle_error "Failed to start jenkins snap"
+    sudo systemctl enable jenkins 2>/dev/null || handle_error "Failed to enable jenkins snap"
+    sleep 15
+    if [ -f /var/snap/jenkins/common/jenkins_admin_token.key ]; then
+      JENKINS_PASS=$(sudo cat /var/snap/jenkins/common/jenkins_admin_token.key 2>/dev/null)
+      echo -e "${GREEN}Jenkins Initial Password (Snap): ${JENKINS_PASS}${NC}"
+    else
+      handle_error "Jenkins snap token file not found yet"
+    fi
+  else
+    handle_error "Jenkins installation failed (both apt and snap) - will need manual setup"
+    echo -e "${YELLOW}To install Jenkins manually:${NC}"
+    echo -e "  sudo snap install jenkins --classic${NC}"
+  fi
 else
   sudo systemctl start jenkins 2>/dev/null || handle_error "Failed to start jenkins"
   sudo systemctl enable jenkins 2>/dev/null || handle_error "Failed to enable jenkins"
@@ -80,10 +94,10 @@ fi
 
 # Install kubectl
 echo -e "${GREEN}[6/10] Installing kubectl...${NC}"
-if curl -s -o kubectl https://amazon-eks.s3.us-east-1.amazonaws.com/1.27.0/2023-03-13/bin/linux/amd64/kubectl; then
+if curl -sL -o kubectl https://dl.k8s.io/release/v1.27.0/bin/linux/amd64/kubectl; then
   chmod +x ./kubectl
   sudo mv ./kubectl /usr/local/bin
-  kubectl version --short --client 2>&1 || handle_error "kubectl not working"
+  kubectl version --client 2>&1 | head -1 || handle_error "kubectl not working"
 else
   handle_error "Failed to download kubectl"
 fi
