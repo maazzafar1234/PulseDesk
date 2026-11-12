@@ -31,14 +31,22 @@ java -version
 
 # Install Jenkins
 echo -e "${GREEN}[4/10] Installing Jenkins...${NC}"
+sudo apt-get install -y gnupg2 ca-certificates
+
+# Download Jenkins key with retry
 sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
-  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+  https://pkg.jenkins.io/debian-stable/jenkins.io.key || \
+sudo wget -O /usr/share/keyrings/jenkins-keyring.asc \
+  https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key || \
+  echo "Warning: Could not download Jenkins key, continuing without signature verification"
 
 echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc]" \
   https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null || \
+echo "deb https://pkg.jenkins.io/debian-stable binary/" | sudo tee \
   /etc/apt/sources.list.d/jenkins.list > /dev/null
 
-sudo apt-get update -y
+sudo apt-get update -y || echo "Warning: Some packages failed to update"
 sudo apt-get install jenkins -y
 sudo systemctl start jenkins
 sudo systemctl enable jenkins
