@@ -326,7 +326,37 @@ JWT_SECRET=your-super-secret-key-change-in-production
 FRONTEND_URL=http://localhost:5173
 ```
 
-## Deployment
+## CI/CD Deployment on AWS EKS
+
+For a **production-grade CI/CD deployment** with Jenkins, ArgoCD, Prometheus, and Grafana:
+
+**📖 [Start Here: CI/CD Deployment Guide](./docs/README-DEPLOYMENT.md)**
+
+Quick Start (3 paths available):
+1. **Automated Scripts** (~2-3 hours) - Recommended for learning
+2. **Terraform IaC** (~1.5 hours) - Recommended for production
+3. **Manual Step-by-Step** (~3-4 hours) - Recommended for understanding
+
+**Key Documentation:**
+- [Deployment Decision Guide](./docs/DEPLOYMENT_DECISION_GUIDE.md) - Choose your approach
+- [Complete Implementation Guide](./docs/DEPLOYMENT_GUIDE.md) - Detailed 11-phase walkthrough
+- [CI/CD Setup Guide](./docs/CI-CD-SETUP.md) - Jenkins pipeline configuration
+- [Infrastructure Architecture](./docs/INFRASTRUCTURE.md) - AWS design and specs
+- [Implementation Checklist](./docs/IMPLEMENTATION-CHECKLIST.md) - 120-point verification
+- [Full Documentation Index](./docs/INDEX.md) - Master navigation
+
+**Infrastructure Stack:**
+- **IaC**: Terraform (AWS VPC, EC2, IAM, Security Groups)
+- **CI/CD**: Jenkins (with master-worker architecture)
+- **Code Quality**: SonarQube, OWASP, Trivy
+- **Container Registry**: Docker Hub
+- **Orchestration**: AWS EKS (Kubernetes)
+- **GitOps**: ArgoCD
+- **Monitoring**: Prometheus + Grafana
+
+---
+
+## Traditional Deployment
 
 ### Frontend Deployment (Vercel)
 

@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pulsedesk-frontend
+  namespace: pulsedesk
+  labels:
+    app: pulsedesk-frontend
+spec:
+  selector:
+    app: pulsedesk-frontend
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      nodePort: 31100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pulsedesk-frontend
+  namespace: pulsedesk
+  labels:
+    app: pulsedesk-frontend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: pulsedesk-frontend
+  template:
+    metadata:
+      labels:
+        app: pulsedesk-frontend
+    spec:
+      containers:
+      - name: pulsedesk-frontend
+        image: your-dockerhub-username/pulsedesk:frontend-latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: VITE_API_BASE_URL
+          value: "http://pulsedesk-backend:5000"
+        - name: VITE_API_URL
+          value: "http://pulsedesk-backend:5000"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 300m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3

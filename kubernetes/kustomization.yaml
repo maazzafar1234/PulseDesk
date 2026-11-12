@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pulsedesk
+
+resources:
+  - namespace.yaml
+  - app-secrets.yaml
+  - postgres-secrets.yaml
+  - postgres-deployment.yaml
+  - backend-deployment.yaml
+  - frontend-deployment.yaml
+
+commonLabels:
+  app: pulsedesk
+  environment: production

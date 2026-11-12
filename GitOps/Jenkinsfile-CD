@@ -1,0 +1,145 @@
+pipeline {
+    agent {
+        label 'worker'
+    }
+    
+    parameters {
+        string(name: 'BUILD_NUMBER', defaultValue: '', description: 'CI Pipeline Build Number')
+    }
+    
+    environment {
+        ARGOCD_SERVER = 'argocd-server-ip:nodeport'
+        ARGOCD_USERNAME = 'admin'
+        ARGOCD_PASSWORD = credentials('argocd-token')
+        KUBECONFIG = "${WORKSPACE}/.kube/config"
+        CLUSTER_NAME = 'pulsedesk@pulsedesk.us-east-1.eksctl.io'
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+    }
+    
+    stages {
+        stage('Sync ArgoCD Application') {
+            steps {
+                script {
+                    sh '''
+                        argocd login ${ARGOCD_SERVER} \
+                            --username ${ARGOCD_USERNAME} \
+                            --password ${ARGOCD_PASSWORD} \
+                            --insecure
+                        
+                        argocd app sync pulsedesk-app \
+                            --prune \
+                            --wait \
+                            --timeout 5m
+                    '''
+                }
+            }
+        }
+        
+        stage('Verify Deployment') {
+            steps {
+                script {
+                    sh '''
+                        # Wait for deployments to be ready
+                        kubectl rollout status deployment/pulsedesk-backend -n pulsedesk --timeout=5m
+                        kubectl rollout status deployment/pulsedesk-frontend -n pulsedesk --timeout=5m
+                        
+                        # Get service endpoints
+                        echo "Service Endpoints:"
+                        kubectl get svc -n pulsedesk
+                    '''
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                script {
+                    sh '''
+                        BACKEND_POD=$(kubectl get pod -n pulsedesk -l app=pulsedesk-backend -o jsonpath='{.items[0].metadata.name}')
+                        
+                        echo "Checking backend health..."
+                        kubectl exec -n pulsedesk ${BACKEND_POD} -- curl -f http://localhost:5000/api/health || exit 1
+                        
+                        echo "Health check passed!"
+                    '''
+                }
+            }
+        }
+        
+        stage('Smoke Tests') {
+            steps {
+                script {
+                    sh '''
+                        # Get backend service IP
+                        BACKEND_IP=$(kubectl get svc pulsedesk-backend -n pulsedesk -o jsonpath='{.spec.clusterIP}')
+                        
+                        echo "Running smoke tests..."
+                        
+                        # Test health endpoint
+                        curl -f http://${BACKEND_IP}:5000/api/health
+                        
+                        echo "Smoke tests passed!"
+                    '''
+                }
+            }
+        }
+        
+        stage('Generate Deployment Report') {
+            steps {
+                script {
+                    sh '''
+                        cat > deployment-report.txt << EOF
+                        ========================================
+                        PulseDesk Deployment Report
+                        ========================================
+                        Build Number: ${BUILD_NUMBER}
+                        Deployment Time: $(date)
+                        
+                        Deployment Status:
+                        $(kubectl get deployment -n pulsedesk)
+                        
+                        Pod Status:
+                        $(kubectl get pods -n pulsedesk)
+                        
+                        Service Details:
+                        $(kubectl get svc -n pulsedesk)
+                        
+                        Recent Events:
+                        $(kubectl get events -n pulsedesk --sort-by='.lastTimestamp' | tail -10)
+                        ========================================
+                        EOF
+                        
+                        cat deployment-report.txt
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            archiveArtifacts artifacts: 'deployment-report.txt', allowEmptyArchive: true
+            cleanWs()
+        }
+        
+        success {
+            echo "Deployment successful!"
+        }
+        
+        failure {
+            echo "Deployment failed!"
+            script {
+                sh '''
+                    echo "Getting cluster status for debugging..."
+                    kubectl describe nodes
+                    kubectl logs -n pulsedesk --all-containers=true --tail=50
+                '''
+            }
+        }
+    }
+}

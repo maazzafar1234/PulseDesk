@@ -1,0 +1,187 @@
+pipeline {
+    agent {
+        label 'worker'
+    }
+    
+    environment {
+        DOCKER_REGISTRY = 'docker.io'
+        DOCKER_USERNAME = credentials('docker-credentials-username')
+        DOCKER_PASSWORD = credentials('docker-credentials-password')
+        DOCKER_REPO = "${DOCKER_USERNAME}/pulsedesk"
+        SONAR_HOST_URL = "http://master-ip:9000"
+        SONARQUBE_TOKEN = credentials('sonarqube-token')
+        GIT_CREDENTIALS = credentials('github-credentials')
+        BUILD_TIMESTAMP = sh(script: "date +%Y%m%d-%H%M%S", returnStdout: true).trim()
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 60, unit: 'MINUTES')
+        timestamps()
+    }
+    
+    stages {
+        stage('Checkout Code') {
+            steps {
+                cleanWs()
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/your-username/pulsedesk.git',
+                        credentialsId: 'github-credentials'
+                    ]]
+                ])
+            }
+        }
+        
+        stage('Build Backend') {
+            steps {
+                script {
+                    sh '''
+                        cd server
+                        npm install
+                        npm run build 2>/dev/null || true
+                    '''
+                }
+            }
+        }
+        
+        stage('Build Frontend') {
+            steps {
+                script {
+                    sh '''
+                        cd client
+                        npm install
+                        npm run build
+                    '''
+                }
+            }
+        }
+        
+        stage('OWASP Dependency Check') {
+            steps {
+                script {
+                    sh '''
+                        docker run --rm -v ${WORKSPACE}:/src owasp/dependency-check:latest \
+                            --scan /src \
+                            --format HTML \
+                            --out /src/dependency-check-report \
+                            --project PulseDesk || true
+                    '''
+                }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    sh '''
+                        docker run --rm \
+                            -e SONAR_HOST_URL=${SONAR_HOST_URL} \
+                            -e SONAR_LOGIN=${SONARQUBE_TOKEN} \
+                            -v ${WORKSPACE}:/usr/src \
+                            sonarsource/sonar-scanner-cli:latest \
+                            -Dsonar.projectKey=pulsedesk \
+                            -Dsonar.projectName=PulseDesk \
+                            -Dsonar.sources=. \
+                            -Dsonar.exclusions=node_modules/**,dist/**,build/**
+                    '''
+                }
+            }
+        }
+        
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    sh '''
+                        docker build -t ${DOCKER_REPO}:frontend-${BUILD_NUMBER} \
+                                   -t ${DOCKER_REPO}:frontend-latest \
+                                   ./client
+                        
+                        docker build -t ${DOCKER_REPO}:backend-${BUILD_NUMBER} \
+                                   -t ${DOCKER_REPO}:backend-latest \
+                                   ./server
+                    '''
+                }
+            }
+        }
+        
+        stage('Trivy Image Scan') {
+            steps {
+                script {
+                    sh '''
+                        trivy image --exit-code 0 --severity HIGH,CRITICAL \
+                            ${DOCKER_REPO}:frontend-${BUILD_NUMBER}
+                        
+                        trivy image --exit-code 0 --severity HIGH,CRITICAL \
+                            ${DOCKER_REPO}:backend-${BUILD_NUMBER}
+                    '''
+                }
+            }
+        }
+        
+        stage('Push to Docker Registry') {
+            steps {
+                script {
+                    sh '''
+                        echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                        
+                        docker push ${DOCKER_REPO}:frontend-${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}:frontend-latest
+                        
+                        docker push ${DOCKER_REPO}:backend-${BUILD_NUMBER}
+                        docker push ${DOCKER_REPO}:backend-latest
+                        
+                        docker logout
+                    '''
+                }
+            }
+        }
+        
+        stage('Update Kubernetes Manifests') {
+            steps {
+                script {
+                    sh '''
+                        cd kubernetes
+                        
+                        sed -i "s|image: .*frontend.*|image: ${DOCKER_REPO}:frontend-${BUILD_NUMBER}|g" frontend-deployment.yaml
+                        sed -i "s|image: .*backend.*|image: ${DOCKER_REPO}:backend-${BUILD_NUMBER}|g" backend-deployment.yaml
+                        
+                        git config user.email "jenkins@pulsedesk.local"
+                        git config user.name "Jenkins CI"
+                        
+                        git add frontend-deployment.yaml backend-deployment.yaml
+                        git commit -m "Update container images - Build ${BUILD_NUMBER}" || true
+                        
+                        git push https://${GIT_CREDENTIALS_USR}:${GIT_CREDENTIALS_PSW}@github.com/your-username/pulsedesk.git main
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            archiveArtifacts artifacts: '**/dependency-check-report/**', 
+                             allowEmptyArchive: true
+            publishHTML([
+                reportDir: 'dependency-check-report',
+                reportFiles: 'index.html',
+                reportName: 'OWASP Dependency Check Report'
+            ])
+            cleanWs()
+        }
+        
+        success {
+            echo "Build successful - Build #${BUILD_NUMBER}"
+            build job: 'Wanderlust-CD', wait: false, parameters: [
+                string(name: 'BUILD_NUMBER', value: "${BUILD_NUMBER}")
+            ]
+        }
+        
+        failure {
+            echo "Build failed - Build #${BUILD_NUMBER}"
+        }
+    }
+}

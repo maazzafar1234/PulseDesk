@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pulsedesk-backend
+  namespace: pulsedesk
+  labels:
+    app: pulsedesk-backend
+spec:
+  selector:
+    app: pulsedesk-backend
+  type: NodePort
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      nodePort: 31000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pulsedesk-backend
+  namespace: pulsedesk
+  labels:
+    app: pulsedesk-backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: pulsedesk-backend
+  template:
+    metadata:
+      labels:
+        app: pulsedesk-backend
+    spec:
+      containers:
+      - name: pulsedesk-backend
+        image: your-dockerhub-username/pulsedesk:backend-latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "5000"
+        - name: DATABASE_URL
+          value: "postgresql://pulsedesk_user:ChangeMe123!@postgres:5432/pulsedesk_db"
+        - name: FRONTEND_URL
+          value: "http://pulsedesk-frontend:3000"
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: jwt-secret
+        - name: JWT_EXPIRATION
+          value: "7d"
+        - name: PROMETHEUS_ENABLED
+          value: "true"
+        - name: LOG_LEVEL
+          value: "info"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3

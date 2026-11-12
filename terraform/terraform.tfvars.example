@@ -1,0 +1,18 @@
+# Terraform Variables - Copy this to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars (it's in .gitignore for security)
+
+# AWS Region for deployment
+aws_region = "us-east-1"
+
+# EC2 Instance type
+instance_type = "m7i-flex.large"
+
+# SSH Key Pair Name - YOU MUST CREATE THIS IN AWS FIRST
+# This is the name of your SSH key pair in AWS EC2
+# To create: aws ec2 create-key-pair --key-name your-key-name --region us-east-1
+key_pair_name = "pulsedesk-key"
+
+# CIDR block allowed for SSH access
+# SECURITY WARNING: 0.0.0.0/0 allows SSH from anywhere
+# For production, restrict to your IP: "YOUR_IP/32"
+allowed_ssh_cidr = "0.0.0.0/0"
