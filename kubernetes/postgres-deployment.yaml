@@ -67,26 +67,26 @@ spec:
           limits:
             cpu: 500m
             memory: 1Gi
-        livenessProbe:
-          exec:
-            command:
-            - /bin/sh
-            - -c
-            - pg_isready -U $(POSTGRES_USER)
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          exec:
-            command:
-            - /bin/sh
-            - -c
-            - pg_isready -U $(POSTGRES_USER)
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 1
-          failureThreshold: 3
+         livenessProbe:
+           exec:
+             command:
+             - /bin/sh
+             - -c
+             - pg_isready -U pulsedesk_user -h localhost
+           initialDelaySeconds: 30
+           periodSeconds: 10
+           timeoutSeconds: 5
+           failureThreshold: 3
+         readinessProbe:
+           exec:
+             command:
+             - /bin/sh
+             - -c
+             - pg_isready -U pulsedesk_user -h localhost
+           initialDelaySeconds: 5
+           periodSeconds: 10
+           timeoutSeconds: 1
+           failureThreshold: 3
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
