@@ -22,7 +22,7 @@ echo -e "${GREEN}[1/4] Creating EKS cluster...${NC}"
 eksctl create cluster \
   --name=${CLUSTER_NAME} \
   --region=${REGION} \
-  --version=1.27 \
+  --version=1.31 \
   --without-nodegroup \
   --zones=${REGION}a,${REGION}b \
   --vpc-cidr=10.0.0.0/16
