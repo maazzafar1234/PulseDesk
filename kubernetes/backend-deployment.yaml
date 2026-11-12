@@ -36,12 +36,12 @@ spec:
     metadata:
       labels:
         app: pulsedesk-backend
-    spec:
+     spec:
        containers:
        - name: pulsedesk-backend
          image: maazzafar07/pulsedesk:backend-latest
          imagePullPolicy: Always
-        ports:
+         ports:
         - containerPort: 5000
           name: http
         env:
