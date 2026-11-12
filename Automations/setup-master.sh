@@ -25,7 +25,9 @@ sudo apt-get install -y curl wget git unzip 2>/dev/null || handle_error "apt-get
 echo -e "${GREEN}[2/10] Installing Docker...${NC}"
 sudo apt-get install -y docker.io 2>/dev/null || handle_error "Docker installation failed"
 sudo usermod -aG docker ubuntu 2>/dev/null || true
-newgrp docker 2>/dev/null || true
+# Note: newgrp docker causes script to hang, skipping it
+sudo systemctl start docker 2>/dev/null || true
+sudo systemctl enable docker 2>/dev/null || true
 docker --version || handle_error "Docker not available"
 
 # Install Java
