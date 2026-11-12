@@ -37,10 +37,10 @@ spec:
       labels:
         app: pulsedesk-backend
     spec:
-      containers:
-      - name: pulsedesk-backend
-        image: your-dockerhub-username/pulsedesk:backend-latest
-        imagePullPolicy: Always
+       containers:
+       - name: pulsedesk-backend
+         image: maazzafar07/pulsedesk:backend-latest
+         imagePullPolicy: Always
         ports:
         - containerPort: 5000
           name: http
