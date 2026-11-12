@@ -3,4 +3,5 @@ kind: Namespace
 metadata:
   name: pulsedesk
   labels:
-    name: pulsedesk
+    app: pulsedesk
+    environment: production
