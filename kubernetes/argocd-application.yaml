@@ -7,27 +7,14 @@ spec:
   project: default
   
   source:
-    repoURL: https://github.com/YOUR_USERNAME/pulsedesk.git
+    repoURL: https://github.com/maazzafar1234/PulseDesk.git
     targetRevision: main
     path: kubernetes
-    kustomize:
-      # Uses kustomization.yaml in kubernetes/ directory
-      enabled: true
   
   destination:
     server: https://kubernetes.default.svc
     namespace: pulsedesk
   
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
     - CreateNamespace=true
-  
-  # Notifications
-  notifications:
-    - kind: email
-      name: on-sync-failed
-      when: SyncFailed
-      on: failure
