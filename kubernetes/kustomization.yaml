@@ -5,10 +5,7 @@ namespace: pulsedesk
 
 resources:
   - namespace.yaml
-  # NOTE: app-secrets.yaml is NOT included here because it contains secrets
-  # Secrets should not be stored in Git repositories for security reasons
-  # Secrets are created separately via CD Pipeline or kubectl commands
-  # See IMMEDIATE-FIX.md for instructions on creating secrets
+  - secrets-init.yaml
   - postgres-deployment.yaml
   - backend-deployment.yaml
   - frontend-deployment.yaml

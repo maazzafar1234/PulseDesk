@@ -15,6 +15,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: pulsedesk
   
+  # PreSync hook to ensure secrets exist before deployments
   syncPolicy:
     automated:
       prune: true
