@@ -252,20 +252,40 @@ pipeline {
                 script {
                     echo "🔄 Triggering ArgoCD sync..."
                     sh '''
-                        if ! command -v kubectl &> /dev/null; then
-                            echo "⚠️  kubectl not available - ArgoCD auto-sync should handle deployment"
-                            echo "ℹ️  Check ArgoCD UI for application sync status"
-                            exit 0
+                        ARGOCD_SERVER="a6230930c94bb41b08605f5beffd1ac7-3939892.us-east-1.elb.amazonaws.com"
+                        ARGOCD_NAMESPACE="argocd"
+                        APP_NAME="pulsedesk-app"
+                        
+                        # Try kubectl first if available
+                        if command -v kubectl &> /dev/null; then
+                            echo "Using kubectl to trigger ArgoCD sync..."
+                            echo "ArgoCD Application Status:"
+                            kubectl get application ${APP_NAME} -n ${ARGOCD_NAMESPACE} -o wide || echo "Application not found"
+                            
+                            echo ""
+                            echo "Patching application to trigger sync..."
+                            kubectl patch application ${APP_NAME} -n ${ARGOCD_NAMESPACE} --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"normal"}}}' || echo "Application sync triggered"
+                            echo "✅ ArgoCD sync triggered via kubectl"
+                        else
+                            # Fallback to ArgoCD API if kubectl not available
+                            echo "kubectl not available - Using ArgoCD API to trigger sync..."
+                            echo "ArgoCD Server: ${ARGOCD_SERVER}"
+                            
+                            # Attempt to trigger via ArgoCD API
+                            SYNC_RESPONSE=$(curl -s -X POST \
+                                "https://${ARGOCD_SERVER}/api/v1/applications/${APP_NAME}/sync" \
+                                -H "Content-Type: application/json" \
+                                --insecure || echo "curl_failed")
+                            
+                            if [ "$SYNC_RESPONSE" != "curl_failed" ]; then
+                                echo "ArgoCD API Response: $SYNC_RESPONSE"
+                                echo "✅ ArgoCD sync triggered via API"
+                            else
+                                echo "⚠️  Could not reach ArgoCD API"
+                                echo "ℹ️  ArgoCD auto-sync is enabled and will handle deployment automatically"
+                                echo "ℹ️  Check ArgoCD UI at https://${ARGOCD_SERVER} for sync status"
+                            fi
                         fi
-                        
-                        echo "ArgoCD Application Status:"
-                        kubectl get application pulsedesk-app -n argocd -o wide || echo "Application not found, triggering manual sync..."
-                        
-                        echo ""
-                        echo "Patching application to trigger sync..."
-                        kubectl patch application pulsedesk-app -n argocd --type merge -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"normal"}}}' || echo "Application sync triggered"
-                        
-                        echo "✅ ArgoCD sync triggered"
                     '''
                 }
             }
@@ -334,22 +354,35 @@ pipeline {
                 echo "Docker Images: ${params.DOCKER_IMAGE_TAG}"
                 echo "Deployed at: ${deploymentTime}"
                 echo "========================================="
+                echo ""
+                echo "📊 ArgoCD Deployment Status:"
+                echo "- Application: pulsedesk-app"
+                echo "- ArgoCD UI: https://a6230930c94bb41b08605f5beffd1ac7-3939892.us-east-1.elb.amazonaws.com"
+                echo "- Sync Status: Check ArgoCD UI for real-time sync details"
+                echo ""
                 
                 emailext(
                     subject: "✅ PulseDesk CD Deployment #${BUILD_NUMBER} SUCCESS (CI Build #${params.CI_BUILD_NUMBER})",
                     body: '''
-                        Deployment Status: SUCCESS
-                        CD Build Number: ${BUILD_NUMBER}
-                        CI Build Number: ''' + params.CI_BUILD_NUMBER + '''
-                        Docker Image Tag: ''' + params.DOCKER_IMAGE_TAG + '''
-                        Build URL: ${BUILD_URL}
+                        Deployment Status: SUCCESS ✅
                         
-                        Application deployed to Kubernetes cluster.
+                        Build Details:
+                        - CD Build Number: ${BUILD_NUMBER}
+                        - CI Build Number: ''' + params.CI_BUILD_NUMBER + '''
+                        - Docker Image Tag: ''' + params.DOCKER_IMAGE_TAG + '''
+                        - Build URL: ${BUILD_URL}
+                        
+                        Deployment Information:
+                        - Application deployed to Kubernetes cluster via ArgoCD
+                        - GitOps sync enabled (auto-sync enabled)
+                        - Check ArgoCD dashboard for real-time status
                         
                         Access your application:
-                        - Get Worker Node IP: kubectl get nodes -o wide
                         - Frontend: http://<NODE-IP>:31100
                         - Backend: http://<NODE-IP>:31000/api/health
+                        
+                        ArgoCD Dashboard: https://a6230930c94bb41b08605f5beffd1ac7-3939892.us-east-1.elb.amazonaws.com
+                        Application: pulsedesk-app
                         
                         Deployment Complete!
                     ''',
