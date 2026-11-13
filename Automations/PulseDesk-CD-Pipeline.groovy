@@ -391,34 +391,60 @@ pipeline {
                 echo "- Sync Status: Check ArgoCD UI for real-time sync details"
                 echo ""
                 
-                emailext(
-                    subject: "✅ PulseDesk CD Deployment #${BUILD_NUMBER} SUCCESS (CI Build #${params.CI_BUILD_NUMBER})",
-                    body: '''
-                        Deployment Status: SUCCESS ✅
-                        
-                        Build Details:
-                        - CD Build Number: ${BUILD_NUMBER}
-                        - CI Build Number: ''' + params.CI_BUILD_NUMBER + '''
-                        - Docker Image Tag: ''' + params.DOCKER_IMAGE_TAG + '''
-                        - Build URL: ${BUILD_URL}
-                        
-                        Deployment Information:
-                        - Application deployed to Kubernetes cluster via ArgoCD
-                        - GitOps sync enabled (auto-sync enabled)
-                        - Check ArgoCD dashboard for real-time status
-                        
-                        Access your application:
-                        - Frontend: http://<NODE-IP>:31100
-                        - Backend: http://<NODE-IP>:31000/api/health
-                        
-                        ArgoCD Dashboard: https://a6230930c94bb41b08605f5beffd1ac7-3939892.us-east-1.elb.amazonaws.com
-                        Application: pulsedesk-app
-                        
-                        Deployment Complete!
-                    ''',
-                    to: '${DEFAULT_RECIPIENTS}',
-                    mimeType: 'text/html'
-                )
+                // Send success email
+                try {
+                    emailext(
+                        subject: "✅ PulseDesk CD Deployment #${BUILD_NUMBER} SUCCESS (CI Build #${params.CI_BUILD_NUMBER})",
+                        body: """
+                            <html>
+                                <body>
+                                    <h2>✅ Deployment Successful</h2>
+                                    <hr/>
+                                    
+                                    <h3>Build Details</h3>
+                                    <ul>
+                                        <li><b>CD Build Number:</b> ${BUILD_NUMBER}</li>
+                                        <li><b>CI Build Number:</b> ${params.CI_BUILD_NUMBER}</li>
+                                        <li><b>Docker Image Tag:</b> ${params.DOCKER_IMAGE_TAG}</li>
+                                        <li><b>Build Time:</b> ${deploymentTime}</li>
+                                        <li><b>Build URL:</b> <a href="${BUILD_URL}">${BUILD_URL}</a></li>
+                                    </ul>
+                                    
+                                    <h3>Deployment Information</h3>
+                                    <ul>
+                                        <li>Application deployed to Kubernetes cluster via ArgoCD</li>
+                                        <li>GitOps sync enabled (auto-sync enabled)</li>
+                                        <li>All pods running and healthy</li>
+                                    </ul>
+                                    
+                                    <h3>Access Your Application</h3>
+                                    <ul>
+                                        <li><b>Frontend:</b> http://&lt;NODE-IP&gt;:31100</li>
+                                        <li><b>Backend API:</b> http://&lt;NODE-IP&gt;:31000</li>
+                                        <li><b>Health Check:</b> http://&lt;NODE-IP&gt;:31000/api/health</li>
+                                    </ul>
+                                    
+                                    <h3>Monitoring</h3>
+                                    <ul>
+                                        <li><b>ArgoCD Dashboard:</b> <a href="https://a6230930c94bb41b08605f5beffd1ac7-3939892.us-east-1.elb.amazonaws.com">https://a6230930c94bb41b08605f5beffd1ac7-3939892.us-east-1.elb.amazonaws.com</a></li>
+                                        <li><b>Application:</b> pulsedesk-app</li>
+                                        <li><b>Namespace:</b> pulsedesk</li>
+                                    </ul>
+                                    
+                                    <hr/>
+                                    <p><i>This is an automated deployment notification from PulseDesk CI/CD Pipeline</i></p>
+                                </body>
+                            </html>
+                        """,
+                        to: '${DEFAULT_RECIPIENTS}',
+                        recipientProviders: [developers(), requestor(), brokenBuildSuspects()],
+                        mimeType: 'text/html'
+                    )
+                    echo "✅ Success email sent"
+                } catch (Exception e) {
+                    echo "⚠️  Email notification failed: ${e.message}"
+                    echo "Check Jenkins email configuration"
+                }
             }
         }
         failure {
@@ -432,20 +458,53 @@ pipeline {
                 echo "Failed at: ${failureTime}"
                 echo "========================================="
                 
-                emailext(
-                    subject: "❌ PulseDesk CD Deployment #${BUILD_NUMBER} FAILED (CI Build #${params.CI_BUILD_NUMBER})",
-                    body: '''
-                        Deployment Status: FAILED
-                        CD Build Number: ${BUILD_NUMBER}
-                        CI Build Number: ''' + params.CI_BUILD_NUMBER + '''
-                        Docker Image Tag: ''' + params.DOCKER_IMAGE_TAG + '''
-                        Build URL: ${BUILD_URL}
-                        
-                        Please check the logs for more information.
-                    ''',
-                    to: '${DEFAULT_RECIPIENTS}',
-                    mimeType: 'text/html'
-                )
+                // Send failure email
+                try {
+                    emailext(
+                        subject: "❌ PulseDesk CD Deployment #${BUILD_NUMBER} FAILED (CI Build #${params.CI_BUILD_NUMBER})",
+                        body: """
+                            <html>
+                                <body style="background-color: #ffe6e6;">
+                                    <h2>❌ Deployment Failed</h2>
+                                    <hr/>
+                                    
+                                    <h3>Build Details</h3>
+                                    <ul>
+                                        <li><b>CD Build Number:</b> ${BUILD_NUMBER}</li>
+                                        <li><b>CI Build Number:</b> ${params.CI_BUILD_NUMBER}</li>
+                                        <li><b>Docker Image Tag:</b> ${params.DOCKER_IMAGE_TAG}</li>
+                                        <li><b>Failed At:</b> ${failureTime}</li>
+                                    </ul>
+                                    
+                                    <h3>Action Required</h3>
+                                    <p>Please check the build logs for error details:</p>
+                                    <ul>
+                                        <li><b>Build URL:</b> <a href="${BUILD_URL}">${BUILD_URL}</a></li>
+                                        <li><b>Console Output:</b> <a href="${BUILD_URL}/console">${BUILD_URL}/console</a></li>
+                                    </ul>
+                                    
+                                    <h3>Troubleshooting</h3>
+                                    <ol>
+                                        <li>Check the build logs for specific error messages</li>
+                                        <li>Verify Kubernetes cluster connectivity</li>
+                                        <li>Check pod status: kubectl get pods -n pulsedesk</li>
+                                        <li>Review ArgoCD sync status</li>
+                                    </ol>
+                                    
+                                    <hr/>
+                                    <p><i>This is an automated deployment notification from PulseDesk CI/CD Pipeline</i></p>
+                                </body>
+                            </html>
+                        """,
+                        to: '${DEFAULT_RECIPIENTS}',
+                        recipientProviders: [developers(), requestor(), brokenBuildSuspects()],
+                        mimeType: 'text/html'
+                    )
+                    echo "✅ Failure email sent"
+                } catch (Exception e) {
+                    echo "⚠️  Email notification failed: ${e.message}"
+                    echo "Check Jenkins email configuration"
+                }
             }
         }
     }
