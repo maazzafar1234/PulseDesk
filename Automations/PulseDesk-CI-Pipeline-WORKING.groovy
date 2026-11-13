@@ -282,7 +282,7 @@ pipeline {
                             git config user.name "Jenkins CI"
                             
                             git add kubernetes/ 2>/dev/null || true
-                            git commit -m "Update container images - Build #${BUILD_NUMBER}" || echo "No changes to commit"
+                            git commit -m "Update container images - Build #${BUILD_NUMBER} [ci skip]" || echo "No changes to commit"
                             
                             git push https://${GIT_USER}:${GIT_TOKEN}@github.com/maazzafar1234/PulseDesk.git main 2>/dev/null || echo "Push failed (might be expected)"
                             echo "✅ Changes pushed to Git"
