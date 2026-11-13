@@ -58,7 +58,10 @@ spec:
         - name: FRONTEND_URL
           value: "http://pulsedesk-frontend:3000"
         - name: JWT_SECRET
-          value: "your-super-secret-jwt-key-change-in-production-at-least-32-characters"
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: jwt-secret
         - name: JWT_EXPIRATION
           value: "7d"
         - name: PROMETHEUS_ENABLED
