@@ -64,10 +64,10 @@ pipeline {
                     echo "🏗️ Building backend application..."
                     dir(env.BACKEND_DIR) {
                         sh '''
-                            echo "Installing backend dependencies..."
-                            npm install
+                            echo "Installing backend dependencies using Docker..."
+                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm install
                             echo "Building backend..."
-                            npm run build
+                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm run build
                             echo "✅ Backend build complete"
                         '''
                     }
@@ -81,10 +81,10 @@ pipeline {
                     echo "🏗️ Building frontend application..."
                     dir(env.FRONTEND_DIR) {
                         sh '''
-                            echo "Installing frontend dependencies..."
-                            npm install
+                            echo "Installing frontend dependencies using Docker..."
+                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm install
                             echo "Building frontend..."
-                            npm run build
+                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm run build
                             echo "✅ Frontend build complete"
                         '''
                     }
