@@ -325,12 +325,6 @@ pipeline {
                 // Trigger CD pipeline on successful build
                 pipelineLogger.section('TRIGGERING CD PIPELINE')
                 pipelineLogger.info("Triggering deployment pipeline...")
-                
-                // Check if this was a webhook-triggered build or any successful build
-                def isCause = currentBuild.rawBuild.getCause(com.cloudbees.jenkins.github.push.GitHubPushCause) != null
-                def isWebhook = env.BUILD_CAUSE?.contains('GitHub') || isCause
-                
-                // Always trigger CD on successful builds (webhook, timer, or manual)
                 pipelineLogger.success("Starting CD pipeline after successful build...")
                 
                 try {
