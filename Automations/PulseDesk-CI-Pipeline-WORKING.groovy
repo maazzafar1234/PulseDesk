@@ -321,6 +321,29 @@ pipeline {
                 pipelineLogger.section('BUILD SUCCESSFUL')
                 pipelineLogger.success("Pipeline completed successfully!")
                 pipelineLogger.info("Build completed at ${BUILD_TIMESTAMP}")
+                
+                // Trigger CD pipeline on successful build
+                pipelineLogger.section('TRIGGERING CD PIPELINE')
+                pipelineLogger.info("Triggering deployment pipeline...")
+                
+                // Check if this was a webhook-triggered build
+                if (env.BUILD_CAUSE == 'GitHubPushCause' || env.BUILD_CAUSE == 'com.cloudbees.jenkins.github.push.GitHubPushCause') {
+                    pipelineLogger.success("Webhook-triggered build - Starting CD pipeline")
+                    
+                    // Trigger CD pipeline with parameters
+                    build job: 'PulseDesk-CD', 
+                        parameters: [
+                            string(name: 'CI_BUILD_NUMBER', value: "${BUILD_NUMBER}"),
+                            string(name: 'DOCKER_IMAGE_TAG', value: "backend-${BUILD_NUMBER}"),
+                            string(name: 'BUILD_TIMESTAMP', value: "${BUILD_TIMESTAMP}")
+                        ],
+                        wait: false // Don't wait for CD to complete
+                    
+                    pipelineLogger.success("CD pipeline triggered successfully!")
+                } else {
+                    pipelineLogger.warning("Manual build detected - skipping CD trigger")
+                    pipelineLogger.info("To deploy, manually trigger PulseDesk-CD job or configure auto-trigger")
+                }
             }
         }
         
