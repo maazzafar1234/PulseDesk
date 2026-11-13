@@ -269,47 +269,36 @@ pipeline {
         }
         
         stage('Commit & Push to Git') {
+            when {
+                // Skip this stage when triggered by GitHub webhook to prevent build loops
+                // Only run when manually triggered or by other means
+                expression {
+                    return env.BUILD_CAUSE != 'GitHubPushCause' && env.BUILD_CAUSE != 'com.cloudbees.jenkins.github.push.GitHubPushCause'
+                }
+            }
             steps {
                 script {
-                    pipelineLogger.section('GIT COMMIT & PUSH')
-                    withCredentials([usernamePassword(
-                        credentialsId: 'github-credentials',
-                        usernameVariable: 'GIT_USER',
-                        passwordVariable: 'GIT_TOKEN'
-                    )]) {
-                        sh '''
-                            git config user.email "jenkins@pulsedesk.local"
-                            git config user.name "Jenkins CI"
-                            
-                            git add kubernetes/ 2>/dev/null || true
-                            git commit -m "Update container images - Build #${BUILD_NUMBER} [ci skip]" || echo "No changes to commit"
-                            
-                            git push https://${GIT_USER}:${GIT_TOKEN}@github.com/maazzafar1234/PulseDesk.git main 2>/dev/null || echo "Push failed (might be expected)"
-                            echo "✅ Changes pushed to Git"
-                        '''
-                    }
+                    pipelineLogger.section('GIT COMMIT & PUSH (SKIPPED - Webhook Trigger)')
+                    pipelineLogger.warning('Skipping Git commit to prevent build loop')
+                    pipelineLogger.info('This is a webhook-triggered build')
+                    pipelineLogger.info('Git commits are only done on manual triggers')
                 }
             }
         }
         
         stage('Create Git Tag') {
+            when {
+                // Skip this stage when triggered by GitHub webhook to prevent build loops
+                expression {
+                    return env.BUILD_CAUSE != 'GitHubPushCause' && env.BUILD_CAUSE != 'com.cloudbees.jenkins.github.push.GitHubPushCause'
+                }
+            }
             steps {
                 script {
-                    pipelineLogger.section('GIT TAG')
-                    withCredentials([usernamePassword(
-                        credentialsId: 'github-credentials',
-                        usernameVariable: 'GIT_USER',
-                        passwordVariable: 'GIT_TOKEN'
-                    )]) {
-                        sh '''
-                            git config user.email "jenkins@pulsedesk.local"
-                            git config user.name "Jenkins CI"
-                            
-                            git tag -a "build-${BUILD_NUMBER}" -m "Build ${BUILD_NUMBER} - ${BUILD_TIMESTAMP}" || true
-                            git push https://${GIT_USER}:${GIT_TOKEN}@github.com/maazzafar1234/PulseDesk.git --tags 2>/dev/null || true
-                            echo "✅ Git tag created and pushed"
-                        '''
-                    }
+                    pipelineLogger.section('GIT TAG (SKIPPED - Webhook Trigger)')
+                    pipelineLogger.warning('Skipping Git tag to prevent build loop')
+                    pipelineLogger.info('This is a webhook-triggered build')
+                    pipelineLogger.info('Git tags are only created on manual triggers')
                 }
             }
         }
