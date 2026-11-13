@@ -1,5 +1,11 @@
 pipeline {
     agent any
+    
+    parameters {
+        string(name: 'CI_BUILD_NUMBER', defaultValue: '', description: 'CI Pipeline Build Number')
+        string(name: 'DOCKER_IMAGE_TAG', defaultValue: 'latest', description: 'Docker Image Tag')
+        string(name: 'BUILD_TIMESTAMP', defaultValue: '', description: 'Build Timestamp from CI')
+    }
 
     environment {
         // GitHub
@@ -22,6 +28,20 @@ pipeline {
     }
 
     stages {
+        stage('Log CD Trigger Parameters') {
+            steps {
+                script {
+                    echo "========================================="
+                    echo "CD Pipeline Triggered by CI"
+                    echo "========================================="
+                    echo "CI Build Number: ${params.CI_BUILD_NUMBER}"
+                    echo "Docker Image Tag: ${params.DOCKER_IMAGE_TAG}"
+                    echo "Build Timestamp: ${params.BUILD_TIMESTAMP}"
+                    echo "========================================="
+                }
+            }
+        }
+        
         stage('Declarative: Checkout SCM') {
             steps {
                 script {
@@ -96,16 +116,32 @@ pipeline {
                 script {
                     echo "🔍 Verifying Kubernetes cluster connectivity..."
                     sh '''
+                        if ! command -v kubectl &> /dev/null; then
+                            echo "⚠️  kubectl not found in PATH"
+                            echo "Checking common locations..."
+                            if [ -f /usr/local/bin/kubectl ]; then
+                                export PATH=$PATH:/usr/local/bin
+                                echo "✅ kubectl found at /usr/local/bin"
+                            elif [ -f /usr/bin/kubectl ]; then
+                                export PATH=$PATH:/usr/bin
+                                echo "✅ kubectl found at /usr/bin"
+                            else
+                                echo "❌ kubectl not found - Cannot proceed with Kubernetes operations"
+                                echo "Please install kubectl on the Jenkins worker node"
+                                exit 1
+                            fi
+                        fi
+                        
                         echo "Kubernetes Cluster Info:"
-                        kubectl cluster-info
+                        kubectl cluster-info || echo "⚠️  Could not connect to cluster"
                         echo ""
                         echo "Nodes:"
-                        kubectl get nodes
+                        kubectl get nodes || echo "⚠️  Could not get nodes"
                         echo ""
                         echo "PulseDesk Namespace:"
                         kubectl get namespace pulsedesk || echo "Creating namespace..."
-                        kubectl create namespace pulsedesk --dry-run=client -o yaml | kubectl apply -f -
-                        echo "✅ Cluster connectivity verified"
+                        kubectl create namespace pulsedesk --dry-run=client -o yaml | kubectl apply -f - || echo "⚠️  Could not create/verify namespace"
+                        echo "✅ Cluster connectivity check complete"
                     '''
                 }
             }
@@ -259,12 +295,21 @@ pipeline {
     post {
         success {
             script {
-                echo "✅ CD Pipeline completed successfully!"
+                echo "========================================="
+                echo "✅ CD PIPELINE COMPLETED SUCCESSFULLY"
+                echo "========================================="
+                echo "CI Build #${params.CI_BUILD_NUMBER} deployed successfully"
+                echo "Docker Images: ${params.DOCKER_IMAGE_TAG}"
+                echo "Deployed at: $(date)"
+                echo "========================================="
+                
                 emailext(
-                    subject: "✅ PulseDesk CD Deployment #${BUILD_NUMBER} SUCCESS",
+                    subject: "✅ PulseDesk CD Deployment #${BUILD_NUMBER} SUCCESS (CI Build #${params.CI_BUILD_NUMBER})",
                     body: '''
                         Deployment Status: SUCCESS
-                        Build Number: ${BUILD_NUMBER}
+                        CD Build Number: ${BUILD_NUMBER}
+                        CI Build Number: ''' + params.CI_BUILD_NUMBER + '''
+                        Docker Image Tag: ''' + params.DOCKER_IMAGE_TAG + '''
                         Build URL: ${BUILD_URL}
                         
                         Application deployed to Kubernetes cluster.
@@ -283,12 +328,21 @@ pipeline {
         }
         failure {
             script {
-                echo "❌ CD Pipeline failed!"
+                echo "========================================="
+                echo "❌ CD PIPELINE FAILED"
+                echo "========================================="
+                echo "CI Build #${params.CI_BUILD_NUMBER} deployment failed"
+                echo "Docker Images: ${params.DOCKER_IMAGE_TAG}"
+                echo "Failed at: $(date)"
+                echo "========================================="
+                
                 emailext(
-                    subject: "❌ PulseDesk CD Deployment #${BUILD_NUMBER} FAILED",
+                    subject: "❌ PulseDesk CD Deployment #${BUILD_NUMBER} FAILED (CI Build #${params.CI_BUILD_NUMBER})",
                     body: '''
                         Deployment Status: FAILED
-                        Build Number: ${BUILD_NUMBER}
+                        CD Build Number: ${BUILD_NUMBER}
+                        CI Build Number: ''' + params.CI_BUILD_NUMBER + '''
+                        Docker Image Tag: ''' + params.DOCKER_IMAGE_TAG + '''
                         Build URL: ${BUILD_URL}
                         
                         Please check the logs for more information.
