@@ -25,6 +25,9 @@ pipeline {
         // ArgoCD
         ARGOCD_SERVER = 'a6230930c94bb41b08605f5beffd1ac7-3939892.us-east-1.elb.amazonaws.com'
         ARGOCD_NAMESPACE = 'argocd'
+        
+        // Email Notifications
+        EMAIL_RECIPIENT = 'maazzafar156@gmail.com'
     }
 
     stages {
@@ -436,14 +439,14 @@ pipeline {
                                 </body>
                             </html>
                         """,
-                        to: '${DEFAULT_RECIPIENTS}',
-                        recipientProviders: [developers(), requestor(), brokenBuildSuspects()],
+                        to: '${EMAIL_RECIPIENT}',
                         mimeType: 'text/html'
                     )
-                    echo "✅ Success email sent"
+                    echo "✅ Success email sent to ${EMAIL_RECIPIENT}"
                 } catch (Exception e) {
                     echo "⚠️  Email notification failed: ${e.message}"
                     echo "Check Jenkins email configuration"
+                    echo "Recipient: ${EMAIL_RECIPIENT}"
                 }
             }
         }
@@ -496,14 +499,14 @@ pipeline {
                                 </body>
                             </html>
                         """,
-                        to: '${DEFAULT_RECIPIENTS}',
-                        recipientProviders: [developers(), requestor(), brokenBuildSuspects()],
+                        to: '${EMAIL_RECIPIENT}',
                         mimeType: 'text/html'
                     )
-                    echo "✅ Failure email sent"
+                    echo "✅ Failure email sent to ${EMAIL_RECIPIENT}"
                 } catch (Exception e) {
                     echo "⚠️  Email notification failed: ${e.message}"
                     echo "Check Jenkins email configuration"
+                    echo "Recipient: ${EMAIL_RECIPIENT}"
                 }
             }
         }
