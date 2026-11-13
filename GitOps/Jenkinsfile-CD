@@ -4,7 +4,9 @@ pipeline {
     }
     
     parameters {
-        string(name: 'BUILD_NUMBER', defaultValue: '', description: 'CI Pipeline Build Number')
+        string(name: 'CI_BUILD_NUMBER', defaultValue: '', description: 'CI Pipeline Build Number')
+        string(name: 'DOCKER_IMAGE_TAG', defaultValue: 'latest', description: 'Docker Image Tag')
+        string(name: 'BUILD_TIMESTAMP', defaultValue: '', description: 'Build Timestamp from CI')
     }
     
     environment {
@@ -22,6 +24,20 @@ pipeline {
     }
     
     stages {
+        stage('Log CD Trigger Parameters') {
+            steps {
+                script {
+                    echo "========================================="
+                    echo "CD Pipeline Triggered by CI"
+                    echo "========================================="
+                    echo "CI Build Number: ${params.CI_BUILD_NUMBER}"
+                    echo "Docker Image Tag: ${params.DOCKER_IMAGE_TAG}"
+                    echo "Build Timestamp: ${params.BUILD_TIMESTAMP}"
+                    echo "========================================="
+                }
+            }
+        }
+        
         stage('Sync ArgoCD Application') {
             steps {
                 script {
@@ -97,8 +113,10 @@ pipeline {
                         ========================================
                         PulseDesk Deployment Report
                         ========================================
-                        Build Number: ${BUILD_NUMBER}
-                        Deployment Time: $(date)
+                        CI Build Number: $CI_BUILD_NUMBER
+                        Docker Image Tag: $DOCKER_IMAGE_TAG
+                        CI Build Timestamp: $BUILD_TIMESTAMP
+                        CD Deployment Time: $(date)
                         
                         Deployment Status:
                         $(kubectl get deployment -n pulsedesk)
@@ -128,12 +146,27 @@ pipeline {
         }
         
         success {
-            echo "Deployment successful!"
+            script {
+                echo "========================================="
+                echo "✅ DEPLOYMENT SUCCESSFUL"
+                echo "========================================="
+                echo "CI Build #${params.CI_BUILD_NUMBER} deployed successfully"
+                echo "Docker Images: ${params.DOCKER_IMAGE_TAG}"
+                echo "Deployed at: $(date)"
+                echo "========================================="
+            }
         }
         
         failure {
-            echo "Deployment failed!"
             script {
+                echo "========================================="
+                echo "❌ DEPLOYMENT FAILED"
+                echo "========================================="
+                echo "CI Build #${params.CI_BUILD_NUMBER} deployment failed"
+                echo "Docker Images: ${params.DOCKER_IMAGE_TAG}"
+                echo "Failed at: $(date)"
+                echo "========================================="
+                
                 sh '''
                     echo "Getting cluster status for debugging..."
                     kubectl describe nodes
