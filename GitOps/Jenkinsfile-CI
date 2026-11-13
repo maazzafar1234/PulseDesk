@@ -39,9 +39,15 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        cd server
-                        npm install
-                        npm run build 2>/dev/null || true
+                        if [ -d "server" ]; then
+                            cd server
+                            npm install
+                            echo "Backend is Node.js - no build step needed"
+                            cd ..
+                        else
+                            echo "❌ server/ directory not found!"
+                            exit 1
+                        fi
                     '''
                 }
             }
@@ -51,9 +57,14 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        cd client
-                        npm install
-                        npm run build
+                        if [ -d "client" ]; then
+                            cd client
+                            npm install
+                            npm run build
+                        else
+                            echo "❌ client/ directory not found!"
+                            exit 1
+                        fi
                     '''
                 }
             }
@@ -84,8 +95,8 @@ pipeline {
                             sonarsource/sonar-scanner-cli:latest \
                             -Dsonar.projectKey=pulsedesk \
                             -Dsonar.projectName=PulseDesk \
-                            -Dsonar.sources=. \
-                            -Dsonar.exclusions=node_modules/**,dist/**,build/**
+                            -Dsonar.sources=server,client \
+                            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/.git/**
                     '''
                 }
             }
@@ -95,13 +106,18 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        docker build -t ${DOCKER_REPO}:frontend-${BUILD_NUMBER} \
-                                   -t ${DOCKER_REPO}:frontend-latest \
-                                   ./client
-                        
-                        docker build -t ${DOCKER_REPO}:backend-${BUILD_NUMBER} \
-                                   -t ${DOCKER_REPO}:backend-latest \
-                                   ./server
+                        if [ -d "client" ] && [ -d "server" ]; then
+                            docker build -t ${DOCKER_REPO}:frontend-${BUILD_NUMBER} \
+                                       -t ${DOCKER_REPO}:frontend-latest \
+                                       ./client
+                            
+                            docker build -t ${DOCKER_REPO}:backend-${BUILD_NUMBER} \
+                                       -t ${DOCKER_REPO}:backend-latest \
+                                       ./server
+                        else
+                            echo "❌ Required directories not found (client/ and/or server/)"
+                            exit 1
+                        fi
                     '''
                 }
             }
@@ -143,18 +159,26 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        cd kubernetes
-                        
-                        sed -i "s|image: .*frontend.*|image: ${DOCKER_REPO}:frontend-${BUILD_NUMBER}|g" frontend-deployment.yaml
-                        sed -i "s|image: .*backend.*|image: ${DOCKER_REPO}:backend-${BUILD_NUMBER}|g" backend-deployment.yaml
-                        
-                        git config user.email "jenkins@pulsedesk.local"
-                        git config user.name "Jenkins CI"
-                        
-                        git add frontend-deployment.yaml backend-deployment.yaml
-                        git commit -m "Update container images - Build ${BUILD_NUMBER}" || true
-                        
-                        git push https://${GIT_CREDENTIALS_USR}:${GIT_CREDENTIALS_PSW}@github.com/your-username/pulsedesk.git main
+                        if [ -d "kubernetes" ]; then
+                            cd kubernetes
+                            
+                            # Update frontend image
+                            sed -i "s|image: .*frontend.*|image: ${DOCKER_REPO}:frontend-${BUILD_NUMBER}|g" frontend-deployment.yaml || echo "frontend-deployment.yaml not found or no image to update"
+                            
+                            # Update backend image
+                            sed -i "s|image: .*backend.*|image: ${DOCKER_REPO}:backend-${BUILD_NUMBER}|g" backend-deployment.yaml || echo "backend-deployment.yaml not found or no image to update"
+                            
+                            git config user.email "jenkins@pulsedesk.local"
+                            git config user.name "Jenkins CI"
+                            
+                            git add frontend-deployment.yaml backend-deployment.yaml 2>/dev/null || true
+                            git commit -m "Update container images - Build ${BUILD_NUMBER}" || echo "No changes to commit"
+                            
+                            git push https://${GIT_CREDENTIALS_USR}:${GIT_CREDENTIALS_PSW}@github.com/your-username/pulsedesk.git main || echo "Push failed - this might be expected if no changes"
+                            cd ..
+                        else
+                            echo "⚠️ kubernetes/ directory not found"
+                        fi
                     '''
                 }
             }

@@ -15,10 +15,11 @@ pipeline {
         
         // SonarQube
         SONARQUBE_HOST = 'http://44.198.186.67:9000'
+        SONARQUBE_TOKEN = credentials('sonarqube-token')
         
-        // Build directories
-        BACKEND_DIR = 'backend'
-        FRONTEND_DIR = 'frontend'
+        // Build directories - CORRECTED to match actual project structure
+        BACKEND_DIR = 'server'
+        FRONTEND_DIR = 'client'
     }
 
     stages {
@@ -64,26 +65,21 @@ pipeline {
                     echo "🏗️ Building backend application..."
                     sh '''
                         echo "Checking backend directory structure..."
-                        ls -la backend/ 2>/dev/null || echo "backend/ not found, checking current directory..."
+                        ls -la server/ 2>/dev/null || echo "server/ not found"
                         
-                        if [ -f "backend/package.json" ]; then
-                            echo "✅ Found backend/package.json"
-                            cd backend
+                        if [ -f "server/package.json" ]; then
+                            echo "✅ Found server/package.json"
+                            cd server
                             echo "Installing backend dependencies..."
                             npm install
-                            echo "Building backend..."
-                            npm run build 2>/dev/null || echo "⚠️ No build script, skipping build step"
+                            echo "Backend build step..."
+                            npm run start 2>/dev/null || echo "⚠️ Backend is Node.js, no build needed"
                             cd ..
-                        elif [ -f "package.json" ]; then
-                            echo "✅ Found package.json in current directory"
-                            echo "Installing dependencies..."
-                            npm install
-                            echo "Building..."
-                            npm run build 2>/dev/null || echo "⚠️ No build script"
                         else
-                            echo "⚠️ No package.json found, skipping backend build"
-                            echo "Available files:"
+                            echo "❌ server/package.json not found!"
+                            echo "Available directories:"
                             ls -la
+                            exit 1
                         fi
                         echo "✅ Backend build complete"
                     '''
@@ -97,26 +93,21 @@ pipeline {
                     echo "🏗️ Building frontend application..."
                     sh '''
                         echo "Checking frontend directory structure..."
-                        ls -la frontend/ 2>/dev/null || echo "frontend/ not found, checking current directory..."
+                        ls -la client/ 2>/dev/null || echo "client/ not found"
                         
-                        if [ -f "frontend/package.json" ]; then
-                            echo "✅ Found frontend/package.json"
-                            cd frontend
+                        if [ -f "client/package.json" ]; then
+                            echo "✅ Found client/package.json"
+                            cd client
                             echo "Installing frontend dependencies..."
                             npm install
-                            echo "Building frontend..."
-                            npm run build 2>/dev/null || echo "⚠️ No build script, skipping build step"
+                            echo "Building frontend (Vite)..."
+                            npm run build
                             cd ..
-                        elif [ -f "package.json" ]; then
-                            echo "✅ Found package.json in current directory"
-                            echo "Installing dependencies..."
-                            npm install
-                            echo "Building..."
-                            npm run build 2>/dev/null || echo "⚠️ No build script"
                         else
-                            echo "⚠️ No package.json found, skipping frontend build"
-                            echo "Available files:"
+                            echo "❌ client/package.json not found!"
+                            echo "Available directories:"
                             ls -la
+                            exit 1
                         fi
                         echo "✅ Frontend build complete"
                     '''
@@ -140,16 +131,15 @@ pipeline {
             steps {
                 script {
                     echo "📊 Running SonarQube code analysis..."
-                    withSonarQubeEnv('sonarqube-server') {
-                        sh '''
-                            sonar-scanner \
-                              -Dsonar.projectKey=pulsedesk \
-                              -Dsonar.projectName=PulseDesk \
-                              -Dsonar.sources=backend,frontend \
-                              -Dsonar.exclusions=**/node_modules/**,**/.git/**,**/dist/**,**/build/** \
-                              -Dsonar.host.url=${SONARQUBE_HOST}
-                        '''
-                    }
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=pulsedesk \
+                          -Dsonar.projectName=PulseDesk \
+                          -Dsonar.sources=server,client \
+                          -Dsonar.exclusions=**/node_modules/**,**/.git/**,**/dist/**,**/build/** \
+                          -Dsonar.host.url=${SONARQUBE_HOST} \
+                          -Dsonar.login=${SONARQUBE_TOKEN}
+                    '''
                     echo "✅ Code analysis complete"
                 }
             }
@@ -187,7 +177,7 @@ pipeline {
                     echo "🐳 Building backend Docker image..."
                     sh '''
                         if command -v docker &> /dev/null; then
-                            docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} ./backend
+                            docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} ./server
                             docker tag ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} ${DOCKER_IMAGE_BACKEND}:latest
                             echo "✅ Backend Docker image built"
                             docker images | grep pulsedesk || true
@@ -206,7 +196,7 @@ pipeline {
                     echo "🐳 Building frontend Docker image..."
                     sh '''
                         if command -v docker &> /dev/null; then
-                            docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} ./frontend
+                            docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} ./client
                             docker tag ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} ${DOCKER_IMAGE_BACKEND}:latest
                             echo "✅ Frontend Docker image built"
                             docker images | grep pulsedesk || true
