@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - jenkins_data:/var/jenkins_home
+    environment:
+      - JAVA_OPTS=-Xmx1024m -Xms512m
+    user: root
+    restart: always
+    networks:
+      - pulsedesk-network
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube-server
+    ports:
+      - "9000:9000"
+    environment:
+      - sonar.jdbc.url=jdbc:postgresql://postgres:5432/sonarqube
+      - sonar.jdbc.username=sonarqube
+      - sonar.jdbc.password=sonarqube
+      - sonar.web.javaAdditionalOpts=-server
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    depends_on:
+      - postgres
+    restart: always
+    networks:
+      - pulsedesk-network
+
+  postgres:
+    image: postgres:13
+    container_name: sonarqube-postgres
+    environment:
+      - POSTGRES_USER=sonarqube
+      - POSTGRES_PASSWORD=sonarqube
+      - POSTGRES_DB=sonarqube
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - pulsedesk-network
+
+volumes:
+  jenkins_data:
+    driver: local
+  sonarqube_data:
+    driver: local
+  sonarqube_extensions:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  pulsedesk-network:
+    driver: bridge
