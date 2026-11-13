@@ -295,12 +295,13 @@ pipeline {
     post {
         success {
             script {
+                def deploymentTime = sh(script: "date", returnStdout: true).trim()
                 echo "========================================="
                 echo "✅ CD PIPELINE COMPLETED SUCCESSFULLY"
                 echo "========================================="
                 echo "CI Build #${params.CI_BUILD_NUMBER} deployed successfully"
                 echo "Docker Images: ${params.DOCKER_IMAGE_TAG}"
-                echo "Deployed at: $(date)"
+                echo "Deployed at: ${deploymentTime}"
                 echo "========================================="
                 
                 emailext(
@@ -328,12 +329,13 @@ pipeline {
         }
         failure {
             script {
+                def failureTime = sh(script: "date", returnStdout: true).trim()
                 echo "========================================="
                 echo "❌ CD PIPELINE FAILED"
                 echo "========================================="
                 echo "CI Build #${params.CI_BUILD_NUMBER} deployment failed"
                 echo "Docker Images: ${params.DOCKER_IMAGE_TAG}"
-                echo "Failed at: $(date)"
+                echo "Failed at: ${failureTime}"
                 echo "========================================="
                 
                 emailext(
