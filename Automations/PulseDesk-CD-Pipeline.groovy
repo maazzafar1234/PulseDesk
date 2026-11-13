@@ -439,7 +439,7 @@ pipeline {
                                 </body>
                             </html>
                         """,
-                        to: '${EMAIL_RECIPIENT}',
+                        to: "${EMAIL_RECIPIENT}",
                         mimeType: 'text/html'
                     )
                     echo "✅ Success email sent to ${EMAIL_RECIPIENT}"
@@ -499,7 +499,7 @@ pipeline {
                                 </body>
                             </html>
                         """,
-                        to: '${EMAIL_RECIPIENT}',
+                        to: "${EMAIL_RECIPIENT}",
                         mimeType: 'text/html'
                     )
                     echo "✅ Failure email sent to ${EMAIL_RECIPIENT}"
