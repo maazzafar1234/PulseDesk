@@ -39,7 +39,7 @@ spec:
     spec:
       containers:
       - name: pulsedesk-frontend
-        image: maazzafar07/pulsedesk:frontend-latest
+        image: maazzafar07/pulsedesk:frontend-24
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
