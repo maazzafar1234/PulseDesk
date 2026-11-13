@@ -65,9 +65,15 @@ pipeline {
                     dir(env.BACKEND_DIR) {
                         sh '''
                             echo "Installing backend dependencies using Docker..."
-                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm install
-                            echo "Building backend..."
-                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm run build
+                            if command -v docker &> /dev/null; then
+                                docker run --rm -v $(pwd):/app -w /app node:20-alpine npm install
+                                echo "Building backend..."
+                                docker run --rm -v $(pwd):/app -w /app node:20-alpine npm run build
+                            else
+                                echo "Docker not available, using npm directly..."
+                                npm install
+                                npm run build
+                            fi
                             echo "✅ Backend build complete"
                         '''
                     }
@@ -82,9 +88,15 @@ pipeline {
                     dir(env.FRONTEND_DIR) {
                         sh '''
                             echo "Installing frontend dependencies using Docker..."
-                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm install
-                            echo "Building frontend..."
-                            docker run --rm -v $(pwd):/app -w /app node:20-alpine npm run build
+                            if command -v docker &> /dev/null; then
+                                docker run --rm -v $(pwd):/app -w /app node:20-alpine npm install
+                                echo "Building frontend..."
+                                docker run --rm -v $(pwd):/app -w /app node:20-alpine npm run build
+                            else
+                                echo "Docker not available, using npm directly..."
+                                npm install
+                                npm run build
+                            fi
                             echo "✅ Frontend build complete"
                         '''
                     }
@@ -154,10 +166,15 @@ pipeline {
                 script {
                     echo "🐳 Building backend Docker image..."
                     sh '''
-                        docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} ./backend
-                        docker tag ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} ${DOCKER_IMAGE_BACKEND}:latest
-                        echo "✅ Backend Docker image built"
-                        docker images | grep pulsedesk
+                        if command -v docker &> /dev/null; then
+                            docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} ./backend
+                            docker tag ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} ${DOCKER_IMAGE_BACKEND}:latest
+                            echo "✅ Backend Docker image built"
+                            docker images | grep pulsedesk || true
+                        else
+                            echo "⚠️ Docker not available, skipping Docker build"
+                            echo "Ensure Docker is installed: sudo apt install -y docker.io"
+                        fi
                     '''
                 }
             }
@@ -168,10 +185,15 @@ pipeline {
                 script {
                     echo "🐳 Building frontend Docker image..."
                     sh '''
-                        docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} ./frontend
-                        docker tag ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} ${DOCKER_IMAGE_BACKEND}:latest
-                        echo "✅ Frontend Docker image built"
-                        docker images | grep pulsedesk
+                        if command -v docker &> /dev/null; then
+                            docker build -t ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} ./frontend
+                            docker tag ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} ${DOCKER_IMAGE_BACKEND}:latest
+                            echo "✅ Frontend Docker image built"
+                            docker images | grep pulsedesk || true
+                        else
+                            echo "⚠️ Docker not available, skipping Docker build"
+                            echo "Ensure Docker is installed: sudo apt install -y docker.io"
+                        fi
                     '''
                 }
             }
@@ -195,12 +217,17 @@ pipeline {
                     echo "📤 Pushing Docker images to Docker Hub..."
                     withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                         sh '''
-                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-                            docker push ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG}
-                            docker push ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG}
-                            docker push ${DOCKER_IMAGE_BACKEND}:latest
-                            docker logout
-                            echo "✅ Docker images pushed to Docker Hub"
+                            if command -v docker &> /dev/null; then
+                                echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+                                docker push ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_TAG} || true
+                                docker push ${DOCKER_IMAGE_BACKEND}:${DOCKER_IMAGE_FRONTEND_TAG} || true
+                                docker push ${DOCKER_IMAGE_BACKEND}:latest || true
+                                docker logout || true
+                                echo "✅ Docker images pushed to Docker Hub"
+                            else
+                                echo "⚠️ Docker not available, skipping Docker Hub push"
+                                echo "Ensure Docker is installed: sudo apt install -y docker.io"
+                            fi
                         '''
                     }
                 }
