@@ -148,6 +148,36 @@ pipeline {
             }
         }
 
+        stage('Kubernetes: Create Secrets') {
+            steps {
+                script {
+                    echo "🔐 Creating/Verifying application secrets..."
+                    sh '''
+                        if ! command -v kubectl &> /dev/null; then
+                            echo "⚠️  kubectl not available - skipping secret creation"
+                            echo "ℹ️  Secrets will be created by ArgoCD from app-secrets.yaml"
+                            exit 0
+                        fi
+                        
+                        echo "Checking if app-secrets exists..."
+                        if kubectl get secret app-secrets -n pulsedesk &>/dev/null; then
+                            echo "✅ app-secrets already exists"
+                        else
+                            echo "Creating app-secrets..."
+                            kubectl create secret generic app-secrets \
+                                --from-literal=jwt-secret="G8bevQWT/MFhrcPeCH6T9urt8mxc99GelanPGYr49E0=" \
+                                -n pulsedesk
+                            echo "✅ app-secrets created successfully"
+                        fi
+                        
+                        echo ""
+                        echo "Verifying secrets in pulsedesk namespace:"
+                        kubectl get secrets -n pulsedesk
+                    '''
+                }
+            }
+        }
+
         stage('Kubernetes: Update Deployments') {
             steps {
                 script {
