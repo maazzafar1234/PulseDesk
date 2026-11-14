@@ -1,11 +1,29 @@
 import axios from 'axios';
+import { getApiUrl } from './config';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-
+/**
+ * Create axios instance with dynamic base URL
+ * The base URL is configured via /api/config endpoint
+ * Fallback to environment variables or current origin if config fails
+ */
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
   withCredentials: true, // Include cookies in requests
 });
+
+// Set base URL dynamically (will be set after config initialization)
+export async function initializeApiClient() {
+  try {
+    const baseURL = getApiUrl();
+    apiClient.defaults.baseURL = baseURL;
+    console.log('✓ API Client initialized with baseURL:', baseURL);
+  } catch (error) {
+    console.error('Failed to initialize API client:', error.message);
+    // Fallback to environment or origin
+    const fallbackURL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    apiClient.defaults.baseURL = fallbackURL;
+    console.log('⚠ API Client using fallback baseURL:', fallbackURL);
+  }
+}
 
 export const authAPI = {
   register: async (email, password) => {
