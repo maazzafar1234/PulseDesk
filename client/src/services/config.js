@@ -10,6 +10,9 @@ let CONFIG_INITIALIZED = false;
 /**
  * Initialize configuration by fetching from /api/config endpoint
  * This should be called once on app startup, before any API calls
+ * 
+ * The frontend server (server.js) proxies /api requests to the backend,
+ * so we can safely call /api/config from the frontend origin.
  */
 export async function initializeConfig() {
   if (CONFIG_INITIALIZED) {
@@ -18,7 +21,8 @@ export async function initializeConfig() {
   }
 
   try {
-    // First try to fetch config from the current origin
+    // Fetch config from the frontend's own origin
+    // The frontend server proxies this to the backend
     const response = await fetch('/api/config', {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
@@ -42,10 +46,11 @@ export async function initializeConfig() {
     console.warn('  Error:', error.message);
 
     // Fallback: Use environment variable or current origin
+    // In Kubernetes, the backend is at http://pulsedesk-backend:5000
     API_BASE_URL =
       import.meta.env.VITE_API_URL ||
       import.meta.env.VITE_API_BASE_URL ||
-      window.location.origin;
+      'http://pulsedesk-backend:5000';
 
     CONFIG_INITIALIZED = true;
 

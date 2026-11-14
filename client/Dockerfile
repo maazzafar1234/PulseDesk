@@ -14,10 +14,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN npm install -g serve
+# Install production dependencies for server.js
+RUN npm install express http-proxy
 
 COPY --from=builder /app/dist ./dist
+COPY server.js ./server.js
 
 EXPOSE 3000
 
-CMD ["serve", "-s", "dist", "-l", "3000"]
+CMD ["node", "server.js"]
