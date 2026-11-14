@@ -87,7 +87,7 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
-  skip: (req) => req.path === '/metrics', // Skip rate limiting for metrics endpoint
+  skip: (req) => req.path === '/metrics' || req.path === '/api/health', // Skip rate limiting for metrics and health endpoints
 });
 
 // Stricter rate limiting for auth endpoints
