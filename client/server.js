@@ -44,7 +44,8 @@ const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
 
 // Fallback to index.html for client-side routing
-app.get('/*', (req, res) => {
+// This catches all requests not matched by static files or /api
+app.use((req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
