@@ -7,6 +7,11 @@ const rateLimit = require('express-rate-limit');
 const client = require('prom-client');
 const path = require('path');
 
+// Import observability utilities
+const { logger, requestLogger, errorLogger } = require('./utils/logger');
+const { tracingMiddleware } = require('./utils/tracing');
+const metrics = require('./utils/metrics');
+
 // Initialize database
 const dbModule = require('./db/init');
 
@@ -16,21 +21,12 @@ const PORT = process.env.PORT || 5000;
 // ============================================================================
 // PROMETHEUS METRICS SETUP
 // ============================================================================
-// Default metrics
+// Collect default metrics (CPU, memory, etc.)
 client.collectDefaultMetrics({ timeout: 5000 });
 
-// Custom metrics
-const httpRequestDuration = new client.Histogram({
-  name: 'http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status_code'],
-  buckets: [0.1, 0.5, 1, 2, 5],
-});
-
-const requestCounter = new client.Counter({
-  name: 'http_requests_total',
-  help: 'Total HTTP requests',
-  labelNames: ['method', 'route', 'status_code'],
+logger.info('Prometheus metrics initialized', {
+  defaultMetrics: true,
+  customMetrics: true,
 });
 
 // ============================================================================
@@ -45,21 +41,30 @@ let server = null;
     global.db = dbModule;
     
     server = app.listen(PORT, () => {
+      logger.info('PulseDesk Server started', {
+        port: PORT,
+        database: dbModule.isPostgres() ? 'PostgreSQL (RDS)' : 'SQLite',
+        environment: process.env.NODE_ENV || 'development',
+        nodeVersion: process.version,
+      });
       console.log(`✓ PulseDesk Server running on http://localhost:${PORT}`);
       console.log(`✓ Database: ${dbModule.isPostgres() ? 'PostgreSQL (RDS)' : 'SQLite'}`);
       console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`✓ Metrics endpoint: /metrics`);
+      console.log(`✓ Logging enabled: ${process.env.LOG_LEVEL || 'INFO'}`);
     });
 
     // Graceful shutdown
     process.on('SIGTERM', async () => {
-      console.log('SIGTERM received, shutting down gracefully...');
+      logger.info('SIGTERM received, shutting down gracefully...');
       server.close(async () => {
         await dbModule.close();
+        logger.info('Server shutdown complete');
         process.exit(0);
       });
     });
   } catch (err) {
+    logger.error('Failed to initialize server', { port: PORT }, err);
     console.error('✗ Failed to initialize server:', err.message);
     process.exit(1);
   }
@@ -99,6 +104,16 @@ app.use(limiter);
 // ============================================================================
 // CORE MIDDLEWARE
 // ============================================================================
+
+// Request/Response logging (must be before other middleware for accurate timing)
+app.use(requestLogger);
+
+// Distributed tracing
+app.use(tracingMiddleware);
+
+// Metrics collection (enhanced with custom metrics)
+app.use(metrics.metricsMiddleware);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(cookieParser());
@@ -118,27 +133,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ============================================================================
-// PROMETHEUS METRICS MIDDLEWARE
-// ============================================================================
-app.use((req, res, next) => {
-  const start = Date.now();
-  
-  res.on('finish', () => {
-    const duration = (Date.now() - start) / 1000;
-    const route = req.route?.path || req.path;
-    
-    httpRequestDuration
-      .labels(req.method, route, res.statusCode)
-      .observe(duration);
-    
-    requestCounter
-      .labels(req.method, route, res.statusCode)
-      .inc();
-  });
-  
-  next();
-});
+// Note: Metrics middleware already added above in CORE MIDDLEWARE section
 
 // ============================================================================
 // ROUTES
@@ -193,10 +188,11 @@ app.use((req, res) => {
   });
 });
 
+// Error logging middleware (must be before final error handler)
+app.use(errorLogger);
+
 // Global error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
-  
   // Rate limit errors
   if (err.status === 429) {
     return res.status(429).json({
