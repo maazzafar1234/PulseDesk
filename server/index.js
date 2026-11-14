@@ -121,8 +121,9 @@ app.use(cookieParser());
 // Enhanced CORS configuration
 app.use(cors({
   origin: (origin, callback) => {
-    const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',');
-    if (!origin || allowedOrigins.includes(origin)) {
+    const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:3000').split(',');
+    // Allow requests without origin header or from allowed origins
+    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -156,6 +157,14 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     database: dbModule.isPostgres() ? 'postgresql' : 'sqlite',
     timestamp: new Date().toISOString(),
+  });
+});
+
+// Config endpoint for frontend (tells where backend is)
+app.get('/api/config', (req, res) => {
+  res.json({
+    apiUrl: process.env.API_URL || `http://${req.get('host')}`,
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
